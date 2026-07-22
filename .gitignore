@@ -1,2 +1,52 @@
-/run/
-/run-data/
+# Gradle caches and build outputs
+.gradle/
+**/.gradle/
+build/
+**/build/
+out/
+
+# Minecraft/Forge development runs
+run/
+run-data/
+**/run/
+**/run-data/
+logs/
+crash-reports/
+saves/
+screenshots/
+options.txt
+usercache.json
+usernamecache.json
+
+# Compiled and packaged artifacts
+*.class
+*.jar
+*.war
+*.zip
+*.tar
+*.tar.gz
+!gradle/wrapper/gradle-wrapper.jar
+
+# JVM crash and replay logs
+hs_err_pid*
+replay_pid*
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+.factorypath
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local-only configuration
+*.local
+*.local.*
+.env
+.env.*
