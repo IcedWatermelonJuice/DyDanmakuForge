@@ -81,6 +81,7 @@ public final class WebSocketClientNetty {
     }
 
     public void run() throws Exception {
+        shutdownGroup(eventLoopGroup);
         URI socketUri = URI.create(Objects.requireNonNull(uri, "WebSocket 尚未初始化"));
         SslContext sslContext = SslContextBuilder.forClient().build();
         EventLoopGroup group = new NioEventLoopGroup(1);
@@ -117,10 +118,20 @@ public final class WebSocketClientNetty {
                 });
 
         try {
-            channel = bootstrap.connect(socketUri.getHost(), PORT).sync().channel();
+            Channel connectedChannel = bootstrap.connect(socketUri.getHost(), PORT).sync().channel();
+            channel = connectedChannel;
+            connectedChannel.closeFuture().addListener(future -> {
+                if (channel == connectedChannel) {
+                    channel = null;
+                    if (handler == socketHandler) {
+                        handler = null;
+                    }
+                }
+                shutdownGroup(group);
+            });
             socketHandler.handshakeFuture().sync();
         } catch (Exception exception) {
-            shutdownGroup();
+            shutdownGroup(group);
             throw exception;
         }
     }
@@ -135,21 +146,29 @@ public final class WebSocketClientNetty {
 
     public synchronized void close() throws InterruptedException {
         Channel current = channel;
+        EventLoopGroup currentGroup = eventLoopGroup;
         try {
             if (current != null && current.isOpen()) {
                 current.writeAndFlush(new CloseWebSocketFrame()).sync();
                 current.close().sync();
             }
         } finally {
-            channel = null;
-            shutdownGroup();
+            if (channel == current) {
+                channel = null;
+                handler = null;
+            }
+            shutdownGroup(currentGroup);
         }
     }
 
-    private void shutdownGroup() {
-        EventLoopGroup group = eventLoopGroup;
-        eventLoopGroup = null;
-        if (group != null) {
+    private synchronized void shutdownGroup(EventLoopGroup group) {
+        if (group == null) {
+            return;
+        }
+        if (eventLoopGroup == group) {
+            eventLoopGroup = null;
+        }
+        if (!group.isShuttingDown() && !group.isShutdown()) {
             group.shutdownGracefully();
         }
     }

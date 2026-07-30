@@ -21,6 +21,7 @@ import static io.netty.buffer.Unpooled.copiedBuffer;
 import static top.tiangalon.dydanmakuforge.DyDanmakuForge.LOGGER;
 
 public class WebSocketClientHandler extends SimpleChannelInboundHandler<Object> {
+    private static final int MAX_DANMAKU_CHARS = 10_000;
 
     private final WebSocketClientHandshaker handshaker;
     private ChannelPromise handshakeFuture;
@@ -28,6 +29,7 @@ public class WebSocketClientHandler extends SimpleChannelInboundHandler<Object> 
     private com.google.protobuf.ByteString Payload = null;
     private final Timer ackTimer = new Timer("DyDanmaku-Ack", true);
     private final StringBuilder danmakuList = new StringBuilder();
+    private volatile String danmakuSnapshot = "";
 
     public WebSocketClientHandler(WebSocketClientHandshaker handshaker) {
         this.handshaker = handshaker;
@@ -275,15 +277,20 @@ public class WebSocketClientHandler extends SimpleChannelInboundHandler<Object> 
     }
 
     private synchronized void appendDanmaku(String msg) {
-        if (danmakuList.length() > 10000) {
-            int firstLineEnd = danmakuList.indexOf("\n");
-            danmakuList.delete(0, firstLineEnd >= 0 ? firstLineEnd + 1 : danmakuList.length());
-        }
         danmakuList.append(msg);
+        while (danmakuList.length() > MAX_DANMAKU_CHARS) {
+            int firstLineEnd = danmakuList.indexOf("\n");
+            if (firstLineEnd >= 0 && firstLineEnd + 1 < danmakuList.length()) {
+                danmakuList.delete(0, firstLineEnd + 1);
+            } else {
+                danmakuList.delete(0, danmakuList.length() - MAX_DANMAKU_CHARS);
+            }
+        }
+        danmakuSnapshot = danmakuList.toString();
     }
 
-    public synchronized String getDanmakuText() {
-        return danmakuList.toString();
+    public String getDanmakuText() {
+        return danmakuSnapshot;
     }
 
     /**
