@@ -103,7 +103,7 @@ if ($javaVersion -notmatch 'version "([0-9]+)') {
     throw "Unable to determine the Java version from: $javaVersion"
 }
 if ([int]$Matches[1] -ne 21) {
-    throw "Forge 1.21.1 requires Java 21, but the selected runtime reports: $javaVersion"
+    throw "NeoForge 1.21.1 requires Java 21, but the selected runtime reports: $javaVersion"
 }
 
 $previousJavaHome = $env:JAVA_HOME
@@ -121,7 +121,7 @@ try {
         & "$PSScriptRoot\gradlew.bat" build --no-daemon --console=plain
     }
     if ($LASTEXITCODE -ne 0) {
-        throw "Forge 1.21.1 build failed with exit code $LASTEXITCODE."
+        throw "NeoForge 1.21.1 build failed with exit code $LASTEXITCODE."
     }
 } finally {
     $env:JAVA_HOME = $previousJavaHome

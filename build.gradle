@@ -1,8 +1,8 @@
 plugins {
-    id 'java'
+    id 'java-library'
     id 'idea'
     id 'eclipse'
-    id 'net.minecraftforge.gradle' version '[7.0.3,8)'
+    id 'net.neoforged.moddev' version '2.0.143'
     id 'com.gradleup.shadow' version '9.4.1'
 }
 
@@ -10,38 +10,42 @@ version = mod_version
 group = mod_group_id
 
 base {
-    archivesName = "DyDanmaku-forge-${minecraft_version}"
+    archivesName = "DyDanmaku-neoforge-${minecraft_version}"
 }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
-minecraft {
-    mappings channel: 'official', version: minecraft_version
+neoForge {
+    version = project.neo_version
 
     runs {
-        configureEach {
-            workingDir = layout.projectDirectory.dir('run')
-            systemProperty 'forge.enabledGameTestNamespaces', mod_id
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
-        register('client')
-        register('server') { args '--nogui' }
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
     }
 }
 
 repositories {
-    minecraft.mavenizer(it)
-    maven fg.forgeMaven
-    maven fg.minecraftLibsMaven
     mavenCentral()
 }
 
 dependencies {
-    implementation minecraft.dependency("net.minecraftforge:forge:${minecraft_version}-${forge_version}")
-
     implementation 'com.google.protobuf:protobuf-java:4.27.2'
     implementation 'com.moandjiezana.toml:toml4j:0.7.2'
-    // Forge coremods provides Nashorn at runtime. Bundling it again creates a split Java module.
+    // NeoForge coremods provides Nashorn at runtime. Bundling it again creates a split Java module.
     compileOnly 'org.openjdk.nashorn:nashorn-core:15.4'
     implementation 'io.netty:netty-codec-http:4.1.97.Final'
 }
@@ -49,7 +53,10 @@ dependencies {
 tasks.named('processResources', ProcessResources).configure {
     def replaceProperties = [
             minecraft_version: minecraft_version,
-            forge_version: forge_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version: neo_version,
+            neo_version_range: neo_version_range,
+            loader_version_range: loader_version_range,
             mod_id: mod_id,
             mod_name: mod_name,
             mod_license: mod_license,
@@ -58,7 +65,7 @@ tasks.named('processResources', ProcessResources).configure {
             mod_description: mod_description
     ]
     inputs.properties replaceProperties
-    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+    filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
         expand replaceProperties
     }
 }

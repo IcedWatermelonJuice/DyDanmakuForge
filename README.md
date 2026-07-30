@@ -1,16 +1,16 @@
-# DyDanmaku Forge 1.21.1
+# DyDanmaku NeoForge 1.21.1
 
-在 Minecraft 客户端聊天框中显示抖音直播间消息。本分支面向 Minecraft 1.21.1，并与 DyDanmaku Fabric `0.1.7` 的功能保持一致。
+在 Minecraft 客户端聊天框中显示抖音直播间消息。本分支面向 Minecraft 1.21.1 NeoForge，并与 DyDanmaku Fabric `0.1.7` 的功能保持一致。
 
 ## 环境
 
 - Minecraft 1.21.1
-- Forge 52.1.16
+- NeoForge 21.1.244
 - Java 21
 
 ## 使用
 
-将 `DyDanmaku-forge-1.21.1-0.1.7.jar` 放入客户端的 `mods` 目录。进入游戏后按 `F7` 打开控制界面，可输入抖音直播间 URL 或房间号并连接；输入框默认填入示例房间号 `594357732923`，可直接替换。
+将 `DyDanmaku-neoforge-1.21.1-0.1.7.jar` 放入客户端的 `mods` 目录。进入游戏后按 `F7` 打开控制界面，可输入抖音直播间 URL 或房间号并连接；输入框默认填入示例房间号 `594357732923`，可直接替换。
 
 输入可以是 URL 或者房间号。示例 URL：`https://live.douyin.com/594357732923`；示例房间号：`594357732923`。
 
@@ -51,11 +51,11 @@ PowerShell 构建脚本启动后会询问自定义 Java 路径，直接回车即
 环境变量的读取优先级为当前进程、用户环境变量、系统环境变量。脚本会校验所选 Java 是否为 Java 21。构建产物位于：
 
 ```text
-build/libs/DyDanmaku-forge-1.21.1-0.1.7.jar
+build/libs/DyDanmaku-neoforge-1.21.1-0.1.7.jar
 ```
 
 ## 说明
 
 - Mod 仅在客户端加载，不要求服务器安装。
-- Protobuf、TOML 和所需的 Netty HTTP 类已包含在发行 JAR 中；Nashorn 及其 ASM 依赖复用 Forge 自带版本，避免 Java 模块冲突。
+- Protobuf、TOML 和所需的 Netty HTTP 类已包含在发行 JAR 中；Nashorn 及其 ASM 依赖复用 NeoForge 自带版本，避免 Java 模块冲突。
 - 抖音网页结构和签名算法可能随平台更新而变化；连接失败时请查看游戏日志中的 `[DyDanmaku]` 信息。
