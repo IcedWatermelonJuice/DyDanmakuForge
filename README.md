@@ -2,7 +2,7 @@
 
 在 Minecraft 客户端聊天框中显示抖音直播弹幕的 Forge Mod。
 
-本仓库 Fork 自 [tiangalon/DyDanmakuForge](https://github.com/tiangalon/DyDanmakuForge)，并参考 [tiangalon/DyDanmaku](https://github.com/tiangalon/DyDanmaku) 的最新版本同步功能与修复。本仓库主要用于个人使用和维护，并根据实际使用需求补充 Forge 版本的修复与功能。当前仅维护 Minecraft 1.20.1 和 1.21.1，两个版本使用独立分支。
+本仓库 Fork 自 [tiangalon/DyDanmakuForge](https://github.com/tiangalon/DyDanmakuForge)，并参考 [tiangalon/DyDanmaku](https://github.com/tiangalon/DyDanmaku) 的最新版本同步功能与修复。本仓库主要用于 **个人使用** 和维护，并根据实际使用需求补充 Forge 版本的修复与功能。当前仅维护 Minecraft 1.20.1 和 1.21.1，两个版本使用独立分支。
 
 ## 维护版本
 
@@ -19,14 +19,6 @@
 
 Minecraft 1.20.1 版本的 Mod 基于 Java 17 构建，Minecraft 1.21.1 版本的 Mod 基于 Java 21 构建。运行 Mod 时也建议为对应的 Minecraft/Forge 实例使用相同的 Java 版本，以避免类版本不兼容或其他运行问题。
 
-## 额外改进
-
-在同步上游最新功能的基础上，本仓库额外加入了以下改进：
-
-- **消息类型过滤**：可在 GUI 中通过复选框控制消息、入场、统计、点赞、礼物和粉丝团消息，也可以通过客户端命令查看和调整过滤状态。
-- **主播头像修复**：修复 Forge 版本中动态头像纹理未正确注册而导致的显示异常或崩溃。
-- **直播间 URL 支持**：连接时可以直接粘贴完整的抖音直播间 URL，不再局限于手动提取房间号；原有房间号输入方式仍然可用。
-
 ## 使用方法
 
 下载与 Minecraft 版本对应的 Forge Mod，将 JAR 文件放入客户端的 `mods` 目录。该 Mod 仅需安装在客户端，服务器无需安装。
@@ -34,8 +26,8 @@ Minecraft 1.20.1 版本的 Mod 基于 Java 17 构建，Minecraft 1.21.1 版本�
 进入游戏后按 `F7` 打开控制界面，可以输入以下任一格式：
 
 ```text
-https://live.douyin.com/594357732923
-594357732923
+https://live.douyin.com/12345678
+12345678
 ```
 
 也可以使用客户端命令：
@@ -74,8 +66,6 @@ https://live.douyin.com/594357732923
 ```text
 build/libs/
 ```
-
-两个 Forge 分支均已通过各自的 `.gitignore` 排除构建产物、中间文件和本地 Gradle 缓存，这些文件不应提交到仓库。
 
 ## 说明
 
