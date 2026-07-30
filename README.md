@@ -1,15 +1,16 @@
 # DyDanmakuForge
 
-在 Minecraft 客户端聊天框中显示抖音直播弹幕的 Forge Mod。
+在 Minecraft 客户端聊天框中显示抖音直播弹幕的 Forge/NeoForge Mod。
 
-本仓库 Fork 自 [tiangalon/DyDanmakuForge](https://github.com/tiangalon/DyDanmakuForge)，并参考 [tiangalon/DyDanmaku](https://github.com/tiangalon/DyDanmaku) 的最新版本同步功能与修复。本仓库主要用于 **个人使用** 和维护，并根据实际使用需求补充 Forge 版本的修复与功能。当前仅维护 Minecraft 1.20.1 和 1.21.1，两个版本使用独立分支。
+本仓库 Fork 自 [tiangalon/DyDanmakuForge](https://github.com/tiangalon/DyDanmakuForge)，并参考 [tiangalon/DyDanmaku](https://github.com/tiangalon/DyDanmaku) 的最新版本同步功能与修复。本仓库主要用于 **个人使用** 和维护，并根据实际使用需求补充 Forge/NeoForge 版本的修复与功能。当前仅维护 Minecraft 1.20.1 和 1.21.1，各版本与加载器使用独立分支。
 
 ## 维护版本
 
-| Minecraft | Forge | Java | 分支 |
+| Minecraft | 加载器 | Java | 分支 |
 | --- | --- | --- | --- |
-| 1.21.1 | 52.1.16 | 21 | [`forge/1.21.1-0.1.7`](https://github.com/IcedWatermelonJuice/DyDanmakuForge/tree/forge/1.21.1-0.1.7) |
-| 1.20.1 | 47.4.22 | 17 | [`forge/1.20.1-0.1.7`](https://github.com/IcedWatermelonJuice/DyDanmakuForge/tree/forge/1.20.1-0.1.7) |
+| 1.21.1 | NeoForge 21.1.244 | 21 | [`neoforge/1.21.1-0.1.7`](https://github.com/IcedWatermelonJuice/DyDanmakuForge/tree/neoforge/1.21.1-0.1.7) |
+| 1.21.1 | Forge 52.1.16 | 21 | [`forge/1.21.1-0.1.7`](https://github.com/IcedWatermelonJuice/DyDanmakuForge/tree/forge/1.21.1-0.1.7) |
+| 1.20.1 | Forge 47.4.22 | 17 | [`forge/1.20.1-0.1.7`](https://github.com/IcedWatermelonJuice/DyDanmakuForge/tree/forge/1.20.1-0.1.7) |
 
 其他 Minecraft 版本暂不在维护范围内。
 
@@ -17,11 +18,11 @@
 
 已构建的 Mod 将发布在 [GitHub Releases](https://github.com/IcedWatermelonJuice/DyDanmakuForge/releases)。请根据 Minecraft 版本下载对应的 JAR 文件。
 
-Minecraft 1.20.1 版本的 Mod 基于 Java 17 构建，Minecraft 1.21.1 版本的 Mod 基于 Java 21 构建。运行 Mod 时也建议为对应的 Minecraft/Forge 实例使用相同的 Java 版本，以避免类版本不兼容或其他运行问题。
+Minecraft 1.20.1 版本的 Mod 基于 Java 17 构建，Minecraft 1.21.1 的 Forge 与 NeoForge 版本均基于 Java 21 构建。运行 Mod 时也建议为对应的 Minecraft/Forge/NeoForge 实例使用相同的 Java 版本，以避免类版本不兼容或其他运行问题。
 
 ## 使用方法
 
-下载与 Minecraft 版本对应的 Forge Mod，将 JAR 文件放入客户端的 `mods` 目录。该 Mod 仅需安装在客户端，服务器无需安装。
+下载与 Minecraft 版本及加载器对应的 Mod，将 JAR 文件放入客户端的 `mods` 目录。该 Mod 仅需安装在客户端，服务器无需安装。
 
 进入游戏后按 `F7` 打开控制界面，可以输入以下任一格式：
 
