@@ -15,6 +15,62 @@ import static top.tiangalon.dydanmakuforge.DyDanmakuForge.LOGGER;
 
 public class ConfigManager {
 
+    public enum MessageType {
+        CHAT("chat", "chat", "消息", "WebcastChatMessage"),
+        MEMBER("member", "member", "入场", "WebcastMemberMessage"),
+        ROOM_STATS("stats", "roomStats", "统计", "WebcastRoomUserSeqMessage"),
+        LIKE("like", "like", "点赞", "WebcastLikeMessage"),
+        GIFT("gift", "gift", "礼物", "WebcastGiftMessage"),
+        FANSCLUB("fansclub", "fansclub", "粉丝团", "WebcastFansclubMessage");
+
+        private final String commandName;
+        private final String configKey;
+        private final String displayName;
+        private final String methodName;
+
+        MessageType(String commandName, String configKey, String displayName, String methodName) {
+            this.commandName = commandName;
+            this.configKey = configKey;
+            this.displayName = displayName;
+            this.methodName = methodName;
+        }
+
+        public String getCommandName() {
+            return commandName;
+        }
+
+        public String getConfigKey() {
+            return configKey;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        public static MessageType fromArgument(String argument) {
+            if (argument == null) {
+                return null;
+            }
+            for (MessageType type : values()) {
+                if (type.commandName.equalsIgnoreCase(argument)
+                        || type.configKey.equalsIgnoreCase(argument)
+                        || type.displayName.equals(argument)) {
+                    return type;
+                }
+            }
+            return null;
+        }
+
+        public static MessageType fromMethod(String method) {
+            for (MessageType type : values()) {
+                if (type.methodName.equals(method)) {
+                    return type;
+                }
+            }
+            return null;
+        }
+    }
+
     /** 方法名到模板配置键的映射 */
     public static final Map<String, String> METHOD_TO_TEMPLATE_KEY = new HashMap<>();
     static {
@@ -55,14 +111,31 @@ public class ConfigManager {
          * 根据 method 名称判断是否应该显示该类型的消息
          */
         public boolean isMethodEnabled(String method) {
-            switch (method) {
-                case "WebcastChatMessage":       return chat;
-                case "WebcastMemberMessage":      return member;
-                case "WebcastRoomUserSeqMessage": return roomStats;
-                case "WebcastLikeMessage":        return like;
-                case "WebcastGiftMessage":        return gift;
-                case "WebcastFansclubMessage":    return fansclub;
-                default:                          return true; // 未知类型默认显示
+            MessageType type = MessageType.fromMethod(method);
+            return type == null || isEnabled(type);
+        }
+
+        public boolean isEnabled(MessageType type) {
+            switch (type) {
+                case CHAT:       return chat;
+                case MEMBER:     return member;
+                case ROOM_STATS: return roomStats;
+                case LIKE:       return like;
+                case GIFT:       return gift;
+                case FANSCLUB:   return fansclub;
+                default:         return true;
+            }
+        }
+
+        public void setEnabled(MessageType type, boolean enabled) {
+            switch (type) {
+                case CHAT:       chat = enabled; break;
+                case MEMBER:     member = enabled; break;
+                case ROOM_STATS: roomStats = enabled; break;
+                case LIKE:       like = enabled; break;
+                case GIFT:       gift = enabled; break;
+                case FANSCLUB:   fansclub = enabled; break;
+                default:
             }
         }
     }
@@ -227,7 +300,7 @@ public class ConfigManager {
      * @param configDirPath 配置目录路径
      * @return MethodVisibilityConfig，若未设置则返回全 true 的默认配置
      */
-    public static MethodVisibilityConfig getMethodVisibilityConfig(String configDirPath) {
+    public static synchronized MethodVisibilityConfig getMethodVisibilityConfig(String configDirPath) {
         MethodVisibilityConfig config = new MethodVisibilityConfig();
         File configFile = new File(configDirPath, "DyDanmakuSettings.toml");
         if (!configFile.exists()) {
@@ -251,6 +324,90 @@ public class ConfigManager {
             // 读取失败，返回默认配置
         }
         return config;
+    }
+
+    public static synchronized boolean setMessageTypeEnabled(
+            String configDirPath, MessageType type, boolean enabled) {
+        MethodVisibilityConfig config = getMethodVisibilityConfig(configDirPath);
+        config.setEnabled(type, enabled);
+        return writeMethodVisibilityConfig(configDirPath, config);
+    }
+
+    public static synchronized boolean setAllMessageTypesEnabled(String configDirPath, boolean enabled) {
+        MethodVisibilityConfig config = getMethodVisibilityConfig(configDirPath);
+        for (MessageType type : MessageType.values()) {
+            config.setEnabled(type, enabled);
+        }
+        return writeMethodVisibilityConfig(configDirPath, config);
+    }
+
+    private static boolean writeMethodVisibilityConfig(
+            String configDirPath, MethodVisibilityConfig config) {
+        File configFile = new File(configDirPath, "DyDanmakuSettings.toml");
+        if (!configFile.exists()) {
+            createDefaultConfig(configDirPath);
+        }
+        try {
+            List<String> lines = Files.readAllLines(configFile.toPath(), StandardCharsets.UTF_8);
+            for (MessageType type : MessageType.values()) {
+                upsertMethodVisibilityLine(lines, type.getConfigKey(), config.isEnabled(type));
+            }
+            Files.write(configFile.toPath(), lines, StandardCharsets.UTF_8);
+            return true;
+        } catch (IOException exception) {
+            LOGGER.error("[DyDanmaku]保存消息类型过滤设置失败：{}", configFile, exception);
+            return false;
+        }
+    }
+
+    private static void upsertMethodVisibilityLine(List<String> lines, String key, boolean enabled) {
+        int sectionStart = -1;
+        int sectionEnd = lines.size();
+        for (int index = 0; index < lines.size(); index++) {
+            String trimmed = lines.get(index).trim();
+            if ("[MethodVisibility]".equals(trimmed)) {
+                sectionStart = index;
+                continue;
+            }
+            if (sectionStart >= 0 && trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                sectionEnd = index;
+                break;
+            }
+        }
+
+        if (sectionStart < 0) {
+            if (!lines.isEmpty() && !lines.get(lines.size() - 1).isBlank()) {
+                lines.add("");
+            }
+            lines.add("[MethodVisibility]");
+            sectionStart = lines.size() - 1;
+            sectionEnd = lines.size();
+        }
+
+        for (int index = sectionStart + 1; index < sectionEnd; index++) {
+            String original = lines.get(index);
+            String setting = original;
+            int commentIndex = setting.indexOf('#');
+            if (commentIndex >= 0) {
+                setting = setting.substring(0, commentIndex);
+            }
+            int equalsIndex = setting.indexOf('=');
+            if (equalsIndex < 0 || !setting.substring(0, equalsIndex).trim().equals(key)) {
+                continue;
+            }
+
+            int firstContentIndex = 0;
+            while (firstContentIndex < original.length()
+                    && Character.isWhitespace(original.charAt(firstContentIndex))) {
+                firstContentIndex++;
+            }
+            String indentation = original.substring(0, firstContentIndex);
+            String comment = commentIndex >= 0 ? " " + original.substring(commentIndex).trim() : "";
+            lines.set(index, indentation + key + " = " + enabled + comment);
+            return;
+        }
+
+        lines.add(sectionEnd, key + " = " + enabled);
     }
 
     /**
