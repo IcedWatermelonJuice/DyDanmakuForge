@@ -10,10 +10,14 @@
 
 ## 使用
 
-将 `DyDanmaku-forge-1.21.1-0.1.7.jar` 放入客户端的 `mods` 目录。进入游戏后按 `F7` 打开控制界面，输入抖音直播间号并连接；输入框默认填入示例房间号 `594357732923`，可直接替换。也可以使用客户端命令：
+将 `DyDanmaku-forge-1.21.1-0.1.7.jar` 放入客户端的 `mods` 目录。进入游戏后按 `F7` 打开控制界面，可输入抖音直播间 URL 或房间号并连接；输入框默认填入示例房间号 `594357732923`，可直接替换。
+
+输入可以是 URL 或者房间号。示例 URL：`https://live.douyin.com/594357732923`；示例房间号：`594357732923`。
+
+也可以使用客户端命令：
 
 ```text
-/dydanmaku connect <直播间号>
+/dydanmaku connect <直播间 URL 或房间号>
 /dydanmaku disconnect
 /dydanmaku status
 ```

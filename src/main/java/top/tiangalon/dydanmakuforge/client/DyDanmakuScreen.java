@@ -57,8 +57,8 @@ public final class DyDanmakuScreen extends Screen {
     @Override
     protected void init() {
         String initialLiveId = liveIdInput == null ? EXAMPLE_LIVE_ID : liveIdInput.getValue();
-        liveIdInput = new EditBox(font, 40, 70, 120, 20, Component.literal("输入直播间 ID"));
-        liveIdInput.setMaxLength(32);
+        liveIdInput = new EditBox(font, 40, 70, 120, 20, Component.literal("输入直播间 URL 或房间号"));
+        liveIdInput.setMaxLength(256);
         liveIdInput.setValue(initialLiveId);
         addRenderableWidget(liveIdInput);
 
@@ -98,7 +98,10 @@ public final class DyDanmakuScreen extends Screen {
                 controller.isConnecting() ? "连接中" : connected ? "断开" : "连接"));
 
         if (!connected || websocket.params == null) {
-            graphics.drawString(font, "按 F7 可关闭此界面", 40, 100, 0xFFAAAAAA, false);
+            graphics.drawString(font, "输入可以是 URL 或者房间号", 40, 100, 0xFFAAAAAA, false);
+            graphics.drawString(font, "示例 URL：https://live.douyin.com/594357732923", 40, 115, 0xFFAAAAAA, false);
+            graphics.drawString(font, "示例房间号：594357732923", 40, 130, 0xFFAAAAAA, false);
+            graphics.drawString(font, "按 F7 可关闭此界面", 40, 145, 0xFFAAAAAA, false);
             return;
         }
 
