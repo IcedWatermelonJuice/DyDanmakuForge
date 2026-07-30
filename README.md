@@ -1,18 +1,42 @@
-# DyDanmaku Forge 1.20.1
+# DyDanmakuForge
 
-在 Minecraft 客户端聊天框中显示抖音直播间消息。本分支面向 Minecraft 1.20.1，并与 DyDanmaku Fabric `0.1.7` 的功能保持一致。
+在 Minecraft 客户端聊天框中显示抖音直播弹幕的 Forge Mod。
 
-## 环境
+本仓库 Fork 自 [tiangalon/DyDanmakuForge](https://github.com/tiangalon/DyDanmakuForge)，并参考 [tiangalon/DyDanmaku](https://github.com/tiangalon/DyDanmaku) 的最新版本同步功能与修复。本仓库主要用于个人使用和维护，并根据实际使用需求补充 Forge 版本的修复与功能。当前仅维护 Minecraft 1.20.1 和 1.21.1，两个版本使用独立分支。
 
-- Minecraft 1.20.1
-- Forge 47.4.22
-- Java 17
+## 维护版本
 
-## 使用
+| Minecraft | Forge | Java | 分支 |
+| --- | --- | --- | --- |
+| 1.21.1 | 52.1.16 | 21 | [`forge/1.21.1-0.1.7`](https://github.com/IcedWatermelonJuice/DyDanmakuForge/tree/forge/1.21.1-0.1.7) |
+| 1.20.1 | 47.4.22 | 17 | [`forge/1.20.1-0.1.7`](https://github.com/IcedWatermelonJuice/DyDanmakuForge/tree/forge/1.20.1-0.1.7) |
 
-将 `DyDanmaku-forge-1.20.1-0.1.7.jar` 放入客户端的 `mods` 目录。进入游戏后按 `F7` 打开控制界面，可输入抖音直播间 URL 或房间号并连接；输入框默认填入示例房间号 `594357732923`，可直接替换。
+其他 Minecraft 版本暂不在维护范围内。
 
-输入可以是 URL 或者房间号。示例 URL：`https://live.douyin.com/594357732923`；示例房间号：`594357732923`。
+## 下载与 Java 版本
+
+已构建的 Mod 将发布在 [GitHub Releases](https://github.com/IcedWatermelonJuice/DyDanmakuForge/releases)。请根据 Minecraft 版本下载对应的 JAR 文件。
+
+Minecraft 1.20.1 版本的 Mod 基于 Java 17 构建，Minecraft 1.21.1 版本的 Mod 基于 Java 21 构建。运行 Mod 时也建议为对应的 Minecraft/Forge 实例使用相同的 Java 版本，以避免类版本不兼容或其他运行问题。
+
+## 额外改进
+
+在同步上游最新功能的基础上，本仓库额外加入了以下改进：
+
+- **消息类型过滤**：可在 GUI 中通过复选框控制消息、入场、统计、点赞、礼物和粉丝团消息，也可以通过客户端命令查看和调整过滤状态。
+- **主播头像修复**：修复 Forge 版本中动态头像纹理未正确注册而导致的显示异常或崩溃。
+- **直播间 URL 支持**：连接时可以直接粘贴完整的抖音直播间 URL，不再局限于手动提取房间号；原有房间号输入方式仍然可用。
+
+## 使用方法
+
+下载与 Minecraft 版本对应的 Forge Mod，将 JAR 文件放入客户端的 `mods` 目录。该 Mod 仅需安装在客户端，服务器无需安装。
+
+进入游戏后按 `F7` 打开控制界面，可以输入以下任一格式：
+
+```text
+https://live.douyin.com/594357732923
+594357732923
+```
 
 也可以使用客户端命令：
 
@@ -22,7 +46,7 @@
 /dydanmaku status
 ```
 
-控制界面的消息类型复选框默认全部勾选，分别控制消息、入场、统计、点赞、礼物和粉丝团消息。选择会保存到 `DyDanmakuSettings.toml`。也可以使用命令调整过滤：
+消息过滤命令：
 
 ```text
 /dydanmaku filter <chat|member|stats|like|gift|fansclub|all>
@@ -30,34 +54,31 @@
 /dydanmaku filter status
 ```
 
-`filter` 表示屏蔽，`unfilter` 表示恢复显示；`all` 表示全部类型。`filter status` 会显示当前允许的消息类型。
-
-首次启动会创建 `config/dydanmaku/DyDanmakuSettings.toml`，可配置 `DySessionId`、消息类型开关、关键词过滤、用户等级过滤和输出模板。
+`filter` 用于屏蔽消息类型，`unfilter` 用于恢复显示，`filter status` 用于查看当前允许显示的消息类型。
 
 ## 构建
 
-PowerShell 构建脚本启动后会询问自定义 Java 路径，直接回车即可自动选择。Java 的选择优先级为：自定义路径 → `JAVA_17_HOME` → `JAVA_HOME` → `Path` 中的 `java`。仅在脚本进程内临时切换 `JAVA_HOME` 和 `Path`，结束后会恢复原值：
+请先切换到对应的版本分支，再运行 PowerShell 构建脚本：
 
 ```powershell
 .\build.ps1
 
-# 完整清理后构建
+# 清理后重新构建
 .\build.ps1 -Clean
-
-# 也可以直接通过参数指定，不再交互询问
-.\build.ps1 -Clean -JavaHome 'C:\path\to\jdk-17'
 ```
 
-环境变量的读取优先级为当前进程、用户环境变量、系统环境变量。脚本会校验所选 Java 是否为 Java 17。构建产物位于：
+构建脚本会询问是否使用自定义 Java 路径。直接回车时，将依次尝试对应版本的 `JAVA_17_HOME` 或 `JAVA_21_HOME`、`JAVA_HOME`，最后使用 `Path` 中的 `java`。
+
+最终安装包位于：
 
 ```text
-build/libs/DyDanmaku-forge-1.20.1-0.1.7.jar
+build/libs/
 ```
 
-构建过程中还会生成带 `-slim.jar` 后缀的中间包。该文件不含第三方依赖，不要作为游戏安装包使用。所有 JAR 均已由 `.gitignore` 排除。
+两个 Forge 分支均已通过各自的 `.gitignore` 排除构建产物、中间文件和本地 Gradle 缓存，这些文件不应提交到仓库。
 
 ## 说明
 
-- Mod 仅在客户端加载，不要求服务器安装。
-- Protobuf、TOML 和所需的 Netty HTTP 类已包含在发行 JAR 中；Nashorn 及其 ASM 依赖复用 Forge 自带版本，避免 Java 模块冲突。
-- 抖音网页结构和签名算法可能随平台更新而变化；连接失败时请查看游戏日志中的 `[DyDanmaku]` 信息。
+- 本项目与抖音官方无关，仅用于在 Minecraft 客户端内显示公开的直播间消息。
+- 抖音网页结构和签名算法可能随平台更新而变化；连接失败时请检查网络状态，并查看游戏日志中的 `[DyDanmaku]` 信息。
+- 如需了解原始 Forge 实现，请访问 [tiangalon/DyDanmakuForge](https://github.com/tiangalon/DyDanmakuForge)；如需了解当前功能基线，请访问 [tiangalon/DyDanmaku](https://github.com/tiangalon/DyDanmaku)。
