@@ -14,9 +14,6 @@ import java.util.Map;
 import static top.tiangalon.dydanmakuforge.DyDanmakuForge.LOGGER;
 
 public class ConfigManager {
-    private static final long CONFIG_CACHE_CHECK_INTERVAL_NANOS = 1_000_000_000L;
-    private static volatile ConfigSnapshot cachedConfig;
-    private static volatile long nextConfigCheckNanos;
 
     public enum MessageType {
         CHAT("chat", "chat", "消息", "WebcastChatMessage"),
@@ -180,40 +177,6 @@ public class ConfigManager {
         public int payGradeMinLevel = 0;
     }
 
-    private static final class ConfigSnapshot {
-        private final String filePath;
-        private final long lastModified;
-        private final long fileSize;
-        private final String sessionId;
-        private final FilterConfig filter;
-        private final MethodVisibilityConfig methodVisibility;
-        private final TemplateConfig templates;
-        private final UserFilterConfig userFilter;
-
-        private ConfigSnapshot(
-                String filePath,
-                long lastModified,
-                long fileSize,
-                String sessionId,
-                FilterConfig filter,
-                MethodVisibilityConfig methodVisibility,
-                TemplateConfig templates,
-                UserFilterConfig userFilter) {
-            this.filePath = filePath;
-            this.lastModified = lastModified;
-            this.fileSize = fileSize;
-            this.sessionId = sessionId;
-            this.filter = filter;
-            this.methodVisibility = methodVisibility;
-            this.templates = templates;
-            this.userFilter = userFilter;
-        }
-
-        private boolean matches(String path, long modified, long size) {
-            return filePath.equals(path) && lastModified == modified && fileSize == size;
-        }
-    }
-
     /**
      * 在 configDirPath 下创建 DyDanmakuSettings.toml（若已存在则跳过）
      */
@@ -278,7 +241,6 @@ public class ConfigManager {
                         + "requirePayGrade = false\n"
                         + "payGradeMinLevel = 0\n";
                 Files.writeString(configFile.toPath(), defaultContent, StandardCharsets.UTF_8);
-                invalidateConfigCache();
             } catch (IOException e) {
                 LOGGER.error("[DyDanmaku]创建默认配置失败：{}", configFile, e);
             }
@@ -290,7 +252,20 @@ public class ConfigManager {
      * @return 用户设置的 DySessionId 值，若未设置则返回 null
      */
     public static String getSessionId(String configDirPath) {
-        return getConfigSnapshot(configDirPath).sessionId;
+        File configFile = new File(configDirPath, "DyDanmakuSettings.toml");
+        if (!configFile.exists()) {
+            return null;
+        }
+        try {
+            Toml toml = new Toml().read(configFile);
+            String sessionId = toml.getString("DySessionId");
+            if (sessionId != null && !sessionId.isEmpty()) {
+                return sessionId;
+            }
+        } catch (Exception e) {
+            // 读取失败，返回 null
+        }
+        return null;
     }
 
     /**
@@ -299,7 +274,25 @@ public class ConfigManager {
      * @return FilterConfig 过滤配置，若未设置则返回默认（disabled）配置
      */
     public static FilterConfig getFilterConfig(String configDirPath) {
-        return getConfigSnapshot(configDirPath).filter;
+        FilterConfig config = new FilterConfig();
+        File configFile = new File(configDirPath, "DyDanmakuSettings.toml");
+        if (!configFile.exists()) {
+            return config;
+        }
+        try {
+            Toml toml = new Toml().read(configFile);
+            String mode = toml.getString("Filter.mode");
+            if (mode != null && !mode.isEmpty()) {
+                config.mode = mode;
+            }
+            List<String> keywords = toml.getList("Filter.keywords");
+            if (keywords != null) {
+                config.keywords = new ArrayList<>(keywords);
+            }
+        } catch (Exception e) {
+            // 读取失败，返回默认配置
+        }
+        return config;
     }
 
     /**
@@ -307,21 +300,41 @@ public class ConfigManager {
      * @param configDirPath 配置目录路径
      * @return MethodVisibilityConfig，若未设置则返回全 true 的默认配置
      */
-    public static MethodVisibilityConfig getMethodVisibilityConfig(String configDirPath) {
-        return getConfigSnapshot(configDirPath).methodVisibility;
+    public static synchronized MethodVisibilityConfig getMethodVisibilityConfig(String configDirPath) {
+        MethodVisibilityConfig config = new MethodVisibilityConfig();
+        File configFile = new File(configDirPath, "DyDanmakuSettings.toml");
+        if (!configFile.exists()) {
+            return config;
+        }
+        try {
+            Toml toml = new Toml().read(configFile);
+            Boolean chat = toml.getBoolean("MethodVisibility.chat");
+            if (chat != null) config.chat = chat;
+            Boolean member = toml.getBoolean("MethodVisibility.member");
+            if (member != null) config.member = member;
+            Boolean roomStats = toml.getBoolean("MethodVisibility.roomStats");
+            if (roomStats != null) config.roomStats = roomStats;
+            Boolean like = toml.getBoolean("MethodVisibility.like");
+            if (like != null) config.like = like;
+            Boolean gift = toml.getBoolean("MethodVisibility.gift");
+            if (gift != null) config.gift = gift;
+            Boolean fansclub = toml.getBoolean("MethodVisibility.fansclub");
+            if (fansclub != null) config.fansclub = fansclub;
+        } catch (Exception e) {
+            // 读取失败，返回默认配置
+        }
+        return config;
     }
 
     public static synchronized boolean setMessageTypeEnabled(
             String configDirPath, MessageType type, boolean enabled) {
-        MethodVisibilityConfig config = copyMethodVisibilityConfig(
-                getMethodVisibilityConfig(configDirPath));
+        MethodVisibilityConfig config = getMethodVisibilityConfig(configDirPath);
         config.setEnabled(type, enabled);
         return writeMethodVisibilityConfig(configDirPath, config);
     }
 
     public static synchronized boolean setAllMessageTypesEnabled(String configDirPath, boolean enabled) {
-        MethodVisibilityConfig config = copyMethodVisibilityConfig(
-                getMethodVisibilityConfig(configDirPath));
+        MethodVisibilityConfig config = getMethodVisibilityConfig(configDirPath);
         for (MessageType type : MessageType.values()) {
             config.setEnabled(type, enabled);
         }
@@ -340,7 +353,6 @@ public class ConfigManager {
                 upsertMethodVisibilityLine(lines, type.getConfigKey(), config.isEnabled(type));
             }
             Files.write(configFile.toPath(), lines, StandardCharsets.UTF_8);
-            invalidateConfigCache();
             return true;
         } catch (IOException exception) {
             LOGGER.error("[DyDanmaku]保存消息类型过滤设置失败：{}", configFile, exception);
@@ -404,7 +416,24 @@ public class ConfigManager {
      * @return TemplateConfig，包含各消息类型的模板
      */
     public static TemplateConfig getTemplateConfig(String configDirPath) {
-        return getConfigSnapshot(configDirPath).templates;
+        TemplateConfig config = new TemplateConfig();
+        File configFile = new File(configDirPath, "DyDanmakuSettings.toml");
+        if (!configFile.exists()) {
+            return config;
+        }
+        try {
+            Toml toml = new Toml().read(configFile);
+            for (Map.Entry<String, String> entry : METHOD_TO_TEMPLATE_KEY.entrySet()) {
+                String key = entry.getValue();
+                String template = toml.getString("Template." + key);
+                if (template != null && !template.isEmpty()) {
+                    config.templates.put(key, template);
+                }
+            }
+        } catch (Exception e) {
+            // 读取失败，返回默认配置
+        }
+        return config;
     }
 
     /**
@@ -413,124 +442,26 @@ public class ConfigManager {
      * @return UserFilterConfig，若未设置则返回默认（disabled）配置
      */
     public static UserFilterConfig getUserFilterConfig(String configDirPath) {
-        return getConfigSnapshot(configDirPath).userFilter;
-    }
-
-    private static MethodVisibilityConfig copyMethodVisibilityConfig(
-            MethodVisibilityConfig source) {
-        MethodVisibilityConfig copy = new MethodVisibilityConfig();
-        for (MessageType type : MessageType.values()) {
-            copy.setEnabled(type, source.isEnabled(type));
-        }
-        return copy;
-    }
-
-    private static void invalidateConfigCache() {
-        cachedConfig = null;
-        nextConfigCheckNanos = 0L;
-    }
-
-    private static ConfigSnapshot getConfigSnapshot(String configDirPath) {
+        UserFilterConfig config = new UserFilterConfig();
         File configFile = new File(configDirPath, "DyDanmakuSettings.toml");
-        String filePath = configFile.getAbsoluteFile().toPath().normalize().toString();
-        long now = System.nanoTime();
-        ConfigSnapshot current = cachedConfig;
-        if (current != null && current.filePath.equals(filePath) && now < nextConfigCheckNanos) {
-            return current;
+        if (!configFile.exists()) {
+            return config;
         }
-
-        synchronized (ConfigManager.class) {
-            current = cachedConfig;
-            now = System.nanoTime();
-            if (current != null && current.filePath.equals(filePath) && now < nextConfigCheckNanos) {
-                return current;
-            }
-
-            long lastModified = configFile.exists() ? configFile.lastModified() : -1L;
-            long fileSize = configFile.exists() ? configFile.length() : -1L;
-            nextConfigCheckNanos = now + CONFIG_CACHE_CHECK_INTERVAL_NANOS;
-            if (current != null && current.matches(filePath, lastModified, fileSize)) {
-                return current;
-            }
-
-            ConfigSnapshot loaded = loadConfigSnapshot(
-                    configFile, filePath, lastModified, fileSize);
-            cachedConfig = loaded;
-            return loaded;
+        try {
+            Toml toml = new Toml().read(configFile);
+            Boolean enabled = toml.getBoolean("UserFilter.enabled");
+            if (enabled != null) config.enabled = enabled;
+            Boolean requireFanClub = toml.getBoolean("UserFilter.requireFanClub");
+            if (requireFanClub != null) config.requireFanClub = requireFanClub;
+            Long fanClubMinLevel = toml.getLong("UserFilter.fanClubMinLevel");
+            if (fanClubMinLevel != null) config.fanClubMinLevel = fanClubMinLevel.intValue();
+            Boolean requirePayGrade = toml.getBoolean("UserFilter.requirePayGrade");
+            if (requirePayGrade != null) config.requirePayGrade = requirePayGrade;
+            Long payGradeMinLevel = toml.getLong("UserFilter.payGradeMinLevel");
+            if (payGradeMinLevel != null) config.payGradeMinLevel = payGradeMinLevel.intValue();
+        } catch (Exception e) {
+            // 读取失败，返回默认配置
         }
-    }
-
-    private static ConfigSnapshot loadConfigSnapshot(
-            File configFile, String filePath, long lastModified, long fileSize) {
-        String sessionId = null;
-        FilterConfig filter = new FilterConfig();
-        MethodVisibilityConfig methodVisibility = new MethodVisibilityConfig();
-        TemplateConfig templates = new TemplateConfig();
-        UserFilterConfig userFilter = new UserFilterConfig();
-
-        if (configFile.exists()) {
-            try {
-                Toml toml = new Toml().read(configFile);
-
-                String configuredSessionId = toml.getString("DySessionId");
-                if (configuredSessionId != null && !configuredSessionId.isEmpty()) {
-                    sessionId = configuredSessionId;
-                }
-
-                String filterMode = toml.getString("Filter.mode");
-                if (filterMode != null && !filterMode.isEmpty()) {
-                    filter.mode = filterMode;
-                }
-                List<String> keywords = toml.getList("Filter.keywords");
-                if (keywords != null) {
-                    filter.keywords = new ArrayList<>(keywords);
-                }
-
-                Boolean chat = toml.getBoolean("MethodVisibility.chat");
-                if (chat != null) methodVisibility.chat = chat;
-                Boolean member = toml.getBoolean("MethodVisibility.member");
-                if (member != null) methodVisibility.member = member;
-                Boolean roomStats = toml.getBoolean("MethodVisibility.roomStats");
-                if (roomStats != null) methodVisibility.roomStats = roomStats;
-                Boolean like = toml.getBoolean("MethodVisibility.like");
-                if (like != null) methodVisibility.like = like;
-                Boolean gift = toml.getBoolean("MethodVisibility.gift");
-                if (gift != null) methodVisibility.gift = gift;
-                Boolean fansclub = toml.getBoolean("MethodVisibility.fansclub");
-                if (fansclub != null) methodVisibility.fansclub = fansclub;
-
-                for (Map.Entry<String, String> entry : METHOD_TO_TEMPLATE_KEY.entrySet()) {
-                    String key = entry.getValue();
-                    String template = toml.getString("Template." + key);
-                    if (template != null && !template.isEmpty()) {
-                        templates.templates.put(key, template);
-                    }
-                }
-
-                Boolean userFilterEnabled = toml.getBoolean("UserFilter.enabled");
-                if (userFilterEnabled != null) userFilter.enabled = userFilterEnabled;
-                Boolean requireFanClub = toml.getBoolean("UserFilter.requireFanClub");
-                if (requireFanClub != null) userFilter.requireFanClub = requireFanClub;
-                Long fanClubMinLevel = toml.getLong("UserFilter.fanClubMinLevel");
-                if (fanClubMinLevel != null) userFilter.fanClubMinLevel = fanClubMinLevel.intValue();
-                Boolean requirePayGrade = toml.getBoolean("UserFilter.requirePayGrade");
-                if (requirePayGrade != null) userFilter.requirePayGrade = requirePayGrade;
-                Long payGradeMinLevel = toml.getLong("UserFilter.payGradeMinLevel");
-                if (payGradeMinLevel != null) userFilter.payGradeMinLevel = payGradeMinLevel.intValue();
-            } catch (Exception exception) {
-                LOGGER.warn("[DyDanmaku]读取配置失败，暂时使用默认值：{}", configFile, exception);
-            }
-        }
-
-        return new ConfigSnapshot(
-                filePath,
-                lastModified,
-                fileSize,
-                sessionId,
-                filter,
-                methodVisibility,
-                templates,
-                userFilter
-        );
+        return config;
     }
 }
