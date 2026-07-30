@@ -17,7 +17,7 @@
 | --- | --- | --- | --- |
 | 1.21.1 | NeoForge 21.1.244 | 21 | [`neoforge/1.21.1-0.1.7`](https://github.com/IcedWatermelonJuice/DyDanmakuForge/tree/neoforge/1.21.1-0.1.7) |
 | 1.21.1 | Forge 52.1.16 | 21 | [`forge/1.21.1-0.1.7`](https://github.com/IcedWatermelonJuice/DyDanmakuForge/tree/forge/1.21.1-0.1.7) |
-| 1.20.1 | Forge 47.4.22 | 17 | [`forge/1.20.1-0.1.7`](https://github.com/IcedWatermelonJuice/DyDanmakuForge/tree/forge/1.20.1-0.1.7) |
+| 1.20.1 | Forge 47.2.32 | 17 | [`forge/1.20.1-0.1.7`](https://github.com/IcedWatermelonJuice/DyDanmakuForge/tree/forge/1.20.1-0.1.7) |
 
 其他 Minecraft 版本暂不在维护范围内。
 
