@@ -24,6 +24,7 @@ import static top.tiangalon.dydanmakuforge.DyDanmakuForge.LOGGER;
 import static top.tiangalon.dydanmakuforge.client.DyDanmakuForgeClient.OPEN_GUI;
 
 public final class DyDanmakuScreen extends Screen {
+    private static final String EXAMPLE_LIVE_ID = "594357732923";
     private static final ResourceLocation AVATAR_ID = ResourceLocation.parse("dydanmaku:avatar");
     private static final ResourceLocation LOADING_ID =
             ResourceLocation.fromNamespaceAndPath("dydanmaku", "textures/gui/sprite/loading.png");
@@ -55,8 +56,10 @@ public final class DyDanmakuScreen extends Screen {
 
     @Override
     protected void init() {
+        String initialLiveId = liveIdInput == null ? EXAMPLE_LIVE_ID : liveIdInput.getValue();
         liveIdInput = new EditBox(font, 40, 70, 120, 20, Component.literal("输入直播间 ID"));
         liveIdInput.setMaxLength(32);
+        liveIdInput.setValue(initialLiveId);
         addRenderableWidget(liveIdInput);
 
         connectButton = Button.builder(Component.literal("连接"), button -> {
