@@ -211,25 +211,30 @@ public final class DyDanmakuScreen extends Screen {
 
     @Override
     public void removed() {
-        if (avatarTexture != null) {
-            avatarTexture.close();
-            avatarTexture = null;
-            avatarRegistered = false;
-        }
+        releaseAvatarTexture();
         super.removed();
     }
 
     private void loadAvatar(Path path) {
         try (InputStream input = Files.newInputStream(path)) {
             NativeImage image = NativeImage.read(input);
-            if (avatarTexture != null) {
-                avatarTexture.close();
-            }
+            releaseAvatarTexture();
             avatarTexture = new DynamicTexture(image);
-            Minecraft.getInstance().getTextureManager().register("dydanmaku:avatar", avatarTexture);
+            Minecraft.getInstance().getTextureManager().register(AVATAR_ID, avatarTexture);
             avatarRegistered = true;
-        } catch (IOException exception) {
+        } catch (IOException | RuntimeException exception) {
+            releaseAvatarTexture();
             LOGGER.warn("[DyDanmaku]加载主播头像失败：{}", path, exception);
         }
+    }
+
+    private void releaseAvatarTexture() {
+        if (avatarRegistered) {
+            Minecraft.getInstance().getTextureManager().release(AVATAR_ID);
+        } else if (avatarTexture != null) {
+            avatarTexture.close();
+        }
+        avatarTexture = null;
+        avatarRegistered = false;
     }
 }
