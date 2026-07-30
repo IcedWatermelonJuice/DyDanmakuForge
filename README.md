@@ -1,5 +1,12 @@
 # DyDanmakuForge
 
+[![OpenJDK 17](https://img.shields.io/badge/OpenJDK-17-437291?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/17/)
+[![OpenJDK 21](https://img.shields.io/badge/OpenJDK-21-437291?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)
+[![Minecraft Forge](https://img.shields.io/badge/Minecraft_Forge-1.20.1%20%7C%201.21.1-F16436?logo=curseforge&logoColor=white)](https://files.minecraftforge.net/net/minecraftforge/forge/)
+[![NeoForge](https://img.shields.io/badge/NeoForge-1.21.1-FC8D1A)](https://neoforged.net/)
+[![GitHub](https://img.shields.io/badge/tiangalon-DyDanmakuForge-181717?logo=github&logoColor=white)](https://github.com/tiangalon/DyDanmakuForge)
+[![GitHub](https://img.shields.io/badge/tiangalon-DyDanmaku-181717?logo=github&logoColor=white)](https://github.com/tiangalon/DyDanmaku)
+
 在 Minecraft 客户端聊天框中显示抖音直播弹幕的 Forge/NeoForge Mod。
 
 本仓库 Fork 自 [tiangalon/DyDanmakuForge](https://github.com/tiangalon/DyDanmakuForge)，并参考 [tiangalon/DyDanmaku](https://github.com/tiangalon/DyDanmaku) 的最新版本同步功能与修复。本仓库主要用于 **个人使用** 和维护，并根据实际使用需求补充 Forge/NeoForge 版本的修复与功能。当前仅维护 Minecraft 1.20.1 和 1.21.1，各版本与加载器使用独立分支。
