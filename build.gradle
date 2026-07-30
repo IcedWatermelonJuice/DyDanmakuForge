@@ -42,7 +42,8 @@ dependencies {
 
     implementation 'com.google.protobuf:protobuf-java:4.27.2'
     implementation 'com.moandjiezana.toml:toml4j:0.7.2'
-    implementation 'org.openjdk.nashorn:nashorn-core:15.4'
+    // Forge coremods provides Nashorn at runtime. Bundling it again creates a split Java module.
+    compileOnly 'org.openjdk.nashorn:nashorn-core:15.4'
     implementation 'io.netty:netty-codec-http:4.1.81.Final'
 }
 
@@ -81,18 +82,11 @@ tasks.named('shadowJar').configure {
     dependencies {
         include dependency('com.google.protobuf:protobuf-java:4.27.2')
         include dependency('com.moandjiezana.toml:toml4j:0.7.2')
-        include dependency('org.openjdk.nashorn:nashorn-core:15.4')
-        include dependency('org.ow2.asm:asm:9.9.1')
-        include dependency('org.ow2.asm:asm-analysis:9.9.1')
-        include dependency('org.ow2.asm:asm-commons:9.9.1')
-        include dependency('org.ow2.asm:asm-tree:9.9.1')
-        include dependency('org.ow2.asm:asm-util:9.9.1')
         include dependency('io.netty:netty-codec-http:4.1.81.Final')
     }
 
     relocate 'com.google.protobuf', "${mod_group_id}.dydanmakuforge.shadow.protobuf"
     relocate 'com.moandjiezana.toml', "${mod_group_id}.dydanmakuforge.shadow.toml"
-    relocate 'org.objectweb.asm', "${mod_group_id}.dydanmakuforge.shadow.asm"
     finalizedBy 'reobfShadowJar'
 }
 
