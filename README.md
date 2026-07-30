@@ -2,8 +2,8 @@
 
 [![OpenJDK 17](https://img.shields.io/badge/OpenJDK-17-437291?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/17/)
 [![OpenJDK 21](https://img.shields.io/badge/OpenJDK-21-437291?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)
-[![Minecraft Forge](https://img.shields.io/badge/Minecraft_Forge-1.20.1%20%7C%201.21.1-F16436?logo=curseforge&logoColor=white)](https://files.minecraftforge.net/net/minecraftforge/forge/)
-[![NeoForge](https://img.shields.io/badge/NeoForge-1.21.1-FC8D1A)](https://neoforged.net/)
+[![Forge](https://img.shields.io/badge/Forge-1.20.1%20%7C%201.21.1-F16436?logo=curseforge&logoColor=white)](https://files.minecraftforge.net/net/minecraftforge/forge/)
+[![NeoForge](https://img.shields.io/badge/NeoForge-1.21.1-FC8D1A?logo=curseforge&logoColor=white)](https://neoforged.net/)
 [![GitHub](https://img.shields.io/badge/tiangalon-DyDanmakuForge-181717?logo=github&logoColor=white)](https://github.com/tiangalon/DyDanmakuForge)
 [![GitHub](https://img.shields.io/badge/tiangalon-DyDanmaku-181717?logo=github&logoColor=white)](https://github.com/tiangalon/DyDanmaku)
 
