@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Checkbox;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.texture.DynamicTexture;
@@ -11,6 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.glfw.GLFW;
 import top.tiangalon.dydanmakuforge.config.ConfigManager;
+import top.tiangalon.dydanmakuforge.config.ConfigManager.MessageType;
 import top.tiangalon.dydanmakuforge.net.WebSocketClientNetty;
 
 import java.io.IOException;
@@ -71,6 +73,16 @@ public final class DyDanmakuScreen extends Screen {
         }).bounds(170, 70, 70, 20).build();
         addRenderableWidget(connectButton);
 
+        ConfigManager.MethodVisibilityConfig visibility = ConfigManager.getMethodVisibilityConfig(
+                ClientRuntime.getConfigDir().toString());
+        MessageType[] messageTypes = MessageType.values();
+        for (int index = 0; index < messageTypes.length; index++) {
+            MessageType type = messageTypes[index];
+            int x = 40 + (index % 3) * 75;
+            int y = 112 + (index / 3) * 22;
+            addRenderableWidget(new MessageTypeCheckbox(x, y, type, visibility.isEnabled(type)));
+        }
+
         Path pendingAvatar = avatarPath;
         if (pendingAvatar != null && Files.isRegularFile(pendingAvatar)) {
             loadAvatar(pendingAvatar);
@@ -96,18 +108,13 @@ public final class DyDanmakuScreen extends Screen {
         liveIdInput.setEditable(!connected && !controller.isConnecting());
         connectButton.setMessage(Component.literal(
                 controller.isConnecting() ? "连接中" : connected ? "断开" : "连接"));
+        graphics.drawString(font, "显示类型（勾选=显示）：", 40, 100, 0xFFFFFFFF, false);
 
         if (!connected || websocket.params == null) {
-            graphics.drawString(font, "输入可以是 URL 或者房间号", 40, 100, 0xFFAAAAAA, false);
-            graphics.drawString(
-                    font,
-                    "示例 URL：https://live.douyin.com/594357732923；示例房间号：594357732923",
-                    40,
-                    115,
-                    0xFFAAAAAA,
-                    false
-            );
-            graphics.drawString(font, "按 F7 可关闭此界面", 40, 130, 0xFFAAAAAA, false);
+            graphics.drawString(font, "输入可以是 URL 或者房间号", 40, 165, 0xFFAAAAAA, false);
+            graphics.drawString(font, "示例 URL：https://live.douyin.com/594357732923", 40, 180, 0xFFAAAAAA, false);
+            graphics.drawString(font, "示例房间号：594357732923", 40, 195, 0xFFAAAAAA, false);
+            graphics.drawString(font, "按 F7 可关闭此界面", 40, 210, 0xFFAAAAAA, false);
             return;
         }
 
@@ -118,14 +125,14 @@ public final class DyDanmakuScreen extends Screen {
         }
 
         drawAvatar(graphics);
-        graphics.drawString(font, "主播：" + websocket.params.getOrDefault("nickname", ""), 100, 100, 0xFFFFFFFF, true);
-        graphics.drawString(font, "标题：" + websocket.params.getOrDefault("live_title", ""), 100, 115, 0xFFFFFFFF, true);
+        graphics.drawString(font, "主播：" + websocket.params.getOrDefault("nickname", ""), 100, 165, 0xFFFFFFFF, true);
+        graphics.drawString(font, "标题：" + websocket.params.getOrDefault("live_title", ""), 100, 180, 0xFFFFFFFF, true);
         drawDanmaku(graphics, websocket.getDanmakuText());
     }
 
     private void drawAvatar(GuiGraphics graphics) {
         if (avatarRegistered) {
-            graphics.blit(AVATAR_ID, 40, 100, 0, 0, 50, 50, 50, 50);
+            graphics.blit(AVATAR_ID, 40, 165, 0, 0, 50, 50, 50, 50);
             return;
         }
         long now = System.currentTimeMillis();
@@ -133,11 +140,11 @@ public final class DyDanmakuScreen extends Screen {
             currentFrame = (currentFrame + 1) % 30;
             lastFrameTime = now;
         }
-        graphics.blit(LOADING_ID, 40, 100, 0, currentFrame * 50, 50, 50, 50, 1500);
+        graphics.blit(LOADING_ID, 40, 165, 0, currentFrame * 50, 50, 50, 50, 1500);
     }
 
     private void drawDanmaku(GuiGraphics graphics, String text) {
-        int top = 160;
+        int top = 225;
         int bottom = height - 15;
         int maxLines = Math.max(1, (bottom - top) / font.lineHeight);
         List<String> lines = text.isEmpty() ? List.of() : Arrays.asList(text.split("\\R"));
@@ -180,6 +187,26 @@ public final class DyDanmakuScreen extends Screen {
     @Override
     public boolean isPauseScreen() {
         return false;
+    }
+
+    private final class MessageTypeCheckbox extends Checkbox {
+        private final MessageType type;
+
+        private MessageTypeCheckbox(int x, int y, MessageType type, boolean selected) {
+            super(x, y, 70, 20, Component.literal(type.getDisplayName()), selected);
+            this.type = type;
+        }
+
+        @Override
+        public void onPress() {
+            super.onPress();
+            boolean saved = ConfigManager.setMessageTypeEnabled(
+                    ClientRuntime.getConfigDir().toString(), type, selected());
+            if (!saved) {
+                super.onPress();
+                ClientRuntime.output("[DyDanmaku]消息类型过滤设置保存失败，请查看日志");
+            }
+        }
     }
 
     @Override

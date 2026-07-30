@@ -3,6 +3,8 @@ package top.tiangalon.dydanmakuforge.client;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.commands.Commands;
@@ -15,10 +17,14 @@ import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.loading.FMLPaths;
 import org.lwjgl.glfw.GLFW;
 import top.tiangalon.dydanmakuforge.config.ConfigManager;
+import top.tiangalon.dydanmakuforge.config.ConfigManager.MessageType;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import static top.tiangalon.dydanmakuforge.DyDanmakuForge.LOGGER;
 
@@ -75,7 +81,8 @@ public final class DyDanmakuForgeClient {
         event.getDispatcher().register(
                 Commands.literal("dydanmaku")
                         .executes(context -> {
-                            ClientRuntime.output("[DyDanmaku]用法：/dydanmaku <connect|disconnect|status>");
+                            ClientRuntime.output(
+                                    "[DyDanmaku]用法：/dydanmaku <connect|disconnect|status|filter|unfilter>");
                             return Command.SINGLE_SUCCESS;
                         })
                         .then(Commands.literal("connect")
@@ -94,7 +101,69 @@ public final class DyDanmakuForgeClient {
                                     CONTROLLER.status();
                                     return Command.SINGLE_SUCCESS;
                                 }))
+                        .then(Commands.literal("filter")
+                                .executes(context -> showAllowedMessageTypes())
+                                .then(Commands.literal("status")
+                                        .executes(context -> showAllowedMessageTypes()))
+                                .then(Commands.argument("type", StringArgumentType.word())
+                                        .suggests((context, builder) -> suggestMessageTypes(builder))
+                                        .executes(context -> setMessageTypeEnabled(
+                                                StringArgumentType.getString(context, "type"), false))))
+                        .then(Commands.literal("unfilter")
+                                .executes(context -> showAllowedMessageTypes())
+                                .then(Commands.argument("type", StringArgumentType.word())
+                                        .suggests((context, builder) -> suggestMessageTypes(builder))
+                                        .executes(context -> setMessageTypeEnabled(
+                                                StringArgumentType.getString(context, "type"), true))))
         );
+    }
+
+    private static CompletableFuture<Suggestions> suggestMessageTypes(SuggestionsBuilder builder) {
+        for (MessageType type : MessageType.values()) {
+            builder.suggest(type.getCommandName());
+        }
+        builder.suggest("all");
+        return builder.buildFuture();
+    }
+
+    private static int setMessageTypeEnabled(String argument, boolean enabled) {
+        String configDir = ClientRuntime.getConfigDir().toString();
+        boolean saved;
+        String targetName;
+        if ("all".equalsIgnoreCase(argument) || "全部".equals(argument)) {
+            saved = ConfigManager.setAllMessageTypesEnabled(configDir, enabled);
+            targetName = "全部消息类型";
+        } else {
+            MessageType type = MessageType.fromArgument(argument);
+            if (type == null) {
+                ClientRuntime.output("[DyDanmaku]未知消息类型：" + argument
+                        + "；可用类型：chat、member、stats、like、gift、fansclub、all");
+                return 0;
+            }
+            saved = ConfigManager.setMessageTypeEnabled(configDir, type, enabled);
+            targetName = type.getDisplayName();
+        }
+
+        if (!saved) {
+            ClientRuntime.output("[DyDanmaku]消息类型过滤设置保存失败，请查看日志");
+            return 0;
+        }
+        ClientRuntime.output("[DyDanmaku]已" + (enabled ? "允许" : "过滤") + "：" + targetName);
+        return showAllowedMessageTypes();
+    }
+
+    private static int showAllowedMessageTypes() {
+        ConfigManager.MethodVisibilityConfig visibility = ConfigManager.getMethodVisibilityConfig(
+                ClientRuntime.getConfigDir().toString());
+        List<String> allowed = new ArrayList<>();
+        for (MessageType type : MessageType.values()) {
+            if (visibility.isEnabled(type)) {
+                allowed.add(type.getDisplayName() + "(" + type.getCommandName() + ")");
+            }
+        }
+        ClientRuntime.output("[DyDanmaku]当前允许的消息类型："
+                + (allowed.isEmpty() ? "无" : String.join("、", allowed)));
+        return Command.SINGLE_SUCCESS;
     }
 
     private static void sendChatMessage(String message) {

@@ -22,6 +22,16 @@
 /dydanmaku status
 ```
 
+控制界面的消息类型复选框默认全部勾选，分别控制消息、入场、统计、点赞、礼物和粉丝团消息。选择会保存到 `DyDanmakuSettings.toml`。也可以使用命令调整过滤：
+
+```text
+/dydanmaku filter <chat|member|stats|like|gift|fansclub|all>
+/dydanmaku unfilter <chat|member|stats|like|gift|fansclub|all>
+/dydanmaku filter status
+```
+
+`filter` 表示屏蔽，`unfilter` 表示恢复显示；`all` 表示全部类型。`filter status` 会显示当前允许的消息类型。
+
 首次启动会创建 `config/dydanmaku/DyDanmakuSettings.toml`，可配置 `DySessionId`、消息类型开关、关键词过滤、用户等级过滤和输出模板。
 
 ## 构建
