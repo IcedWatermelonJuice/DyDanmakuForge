@@ -9,7 +9,10 @@
 
 在 Minecraft 客户端聊天框中显示抖音直播弹幕的 Forge/NeoForge Mod。
 
-本仓库 Fork 自 [tiangalon/DyDanmakuForge](https://github.com/tiangalon/DyDanmakuForge)，并参考 [tiangalon/DyDanmaku](https://github.com/tiangalon/DyDanmaku) 的最新版本同步功能与修复。本仓库主要用于 **个人使用** 和维护，并根据实际使用需求补充 Forge/NeoForge 版本的修复与功能。当前仅维护 Minecraft 1.20.1 和 1.21.1，各版本与加载器使用独立分支。
+本仓库 Fork 自 [tiangalon/DyDanmakuForge（Forge 分支仓库）](https://github.com/tiangalon/DyDanmakuForge)，并同步 [tiangalon/DyDanmaku（Fabric 主仓库）](https://github.com/tiangalon/DyDanmaku) 的**核心功能与文件**，修复 Fabric 相关 API 与 Forge/NeoForge API 不一致的问题。
+本仓库主要用于 **个人使用** 和维护，并根据实际使用需求补充 Forge/NeoForge 版本的修复与功能。
+当前仅维护 Minecraft 1.20.1 和 1.21.1，各版本与加载器使用独立分支。
+本人贡献：将上述核心逻辑迁移至 Forge/NeoForge 环境，修复加载器兼容性问题，并进行 UI 交互适配。
 
 ## 维护版本
 
