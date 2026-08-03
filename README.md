@@ -31,20 +31,7 @@ Minecraft 1.20.1 版本的 Mod 基于 Java 17 构建，Minecraft 1.21.1 的 Forg
 
 下载与 Minecraft 版本及加载器对应的 Mod，将 JAR 文件放入客户端的 `mods` 目录。该 Mod 仅需安装在客户端，服务器无需安装。
 
-进入游戏后按 `F7` 打开控制界面。Mod 默认使用基于抖音官方 OpenAPI 的 bridge WSS 接入；原有输入直播间 URL/房间号的直连接入仍然保留，可在“更多设置 → 接入设置”中关闭官方接入后使用：
-
-```text
-https://live.douyin.com/12345678
-12345678
-```
-
-也可以使用客户端命令：
-
-```text
-/dydanmaku connect <直播间 URL 或房间号>
-/dydanmaku disconnect
-/dydanmaku status
-```
+进入游戏后按 `F7` 打开控制界面。Mod 默认使用基于抖音官方 OpenAPI 的 bridge WSS 接入。原有输入房间号网页代理方式直连属于原仓库**遗留**能力，不进行维护，若直连出现问题，请联系 [Mod 原作者](https://github.com/tiangalon)。。
 
 消息过滤命令：
 
@@ -71,7 +58,7 @@ Dy_Official_API_Key = ""          # 通过 Authorization: Bearer <key> 发送
 DySessionId = ""                  # 仅原有网页直连使用
 ```
 
-bridge 可转发抖音官方开放数据格式的 `live_comment`、`live_like`、`live_gift`、`live_fansclub` 消息。Mod 收到数据后继续使用原有的消息类型开关、输出模板、关键词过滤、用户等级过滤与游戏内显示逻辑。具体消息包装兼容格式见各版本分支 README。
+bridge 可转发抖音官方开放数据格式的 `live_comment`、`live_like`、`live_gift`、`live_fansclub` 消息。Mod 收到数据后继续使用原有的消息类型开关、输出模板、关键词过滤、用户等级过滤与游戏内显示逻辑。
 
 ## 构建
 
@@ -95,5 +82,4 @@ build/libs/
 ## 说明
 
 - 本项目不是抖音官方产品；“官方 OpenAPI 接入”表示数据来源与授权链路基于抖音开放平台官方 OpenAPI，并不表示本项目获得抖音官方背书。
-- 原有网页直连能力未删除。网页结构和签名算法可能随平台更新而变化；直连失败时请检查网络状态，并查看游戏日志中的 `[DyDanmaku]` 信息。
 - 如需了解原始 Forge 实现，请访问 [tiangalon/DyDanmakuForge](https://github.com/tiangalon/DyDanmakuForge)；如需了解当前功能基线，请访问 [tiangalon/DyDanmaku](https://github.com/tiangalon/DyDanmaku)。
