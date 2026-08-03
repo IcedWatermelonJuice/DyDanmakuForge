@@ -73,6 +73,10 @@ public final class DyDanmakuScreen extends Screen {
         }).bounds(170, 70, 70, 20).build();
         addRenderableWidget(connectButton);
 
+        addRenderableWidget(Button.builder(Component.literal("更多设置"), button ->
+                        minecraft.setScreen(new DyDanmakuSettingsScreen(this)))
+                .bounds(width - 100, 25, 80, 20).build());
+
         ConfigManager.MethodVisibilityConfig visibility = ConfigManager.getMethodVisibilityConfig(
                 ClientRuntime.getConfigDir().toString());
         MessageType[] messageTypes = MessageType.values();

@@ -269,6 +269,14 @@ public class ConfigManager {
     }
 
     /**
+     * 保存 DySessionId。传入空字符串时清空配置。
+     */
+    public static synchronized boolean setSessionId(String configDirPath, String sessionId) {
+        String value = sessionId == null ? "" : sessionId.trim();
+        return writeSetting(configDirPath, null, "DySessionId", quoteTomlString(value));
+    }
+
+    /**
      * 从 DyDanmakuSettings.toml 中读取弹幕过滤器配置
      * @param configDirPath 配置目录路径
      * @return FilterConfig 过滤配置，若未设置则返回默认（disabled）配置
@@ -282,8 +290,8 @@ public class ConfigManager {
         try {
             Toml toml = new Toml().read(configFile);
             String mode = toml.getString("Filter.mode");
-            if (mode != null && !mode.isEmpty()) {
-                config.mode = mode;
+            if (isValidFilterMode(mode)) {
+                config.mode = mode.toLowerCase();
             }
             List<String> keywords = toml.getList("Filter.keywords");
             if (keywords != null) {
@@ -293,6 +301,41 @@ public class ConfigManager {
             // 读取失败，返回默认配置
         }
         return config;
+    }
+
+    /**
+     * 保存关键词过滤模式和关键词列表。
+     */
+    public static synchronized boolean setFilterConfig(
+            String configDirPath, String mode, List<String> keywords) {
+        String normalizedMode = isValidFilterMode(mode) ? mode.toLowerCase() : "disabled";
+        List<String> normalizedKeywords = new ArrayList<>();
+        if (keywords != null) {
+            for (String keyword : keywords) {
+                if (keyword == null) {
+                    continue;
+                }
+                String normalizedKeyword = keyword.trim();
+                if (!normalizedKeyword.isEmpty() && !normalizedKeywords.contains(normalizedKeyword)) {
+                    normalizedKeywords.add(normalizedKeyword);
+                }
+            }
+        }
+
+        File configFile = new File(configDirPath, "DyDanmakuSettings.toml");
+        if (!configFile.exists()) {
+            createDefaultConfig(configDirPath);
+        }
+        try {
+            List<String> lines = Files.readAllLines(configFile.toPath(), StandardCharsets.UTF_8);
+            upsertSettingLine(lines, "Filter", "mode", quoteTomlString(normalizedMode));
+            upsertSettingLine(lines, "Filter", "keywords", toTomlStringList(normalizedKeywords));
+            Files.write(configFile.toPath(), lines, StandardCharsets.UTF_8);
+            return true;
+        } catch (IOException exception) {
+            LOGGER.error("[DyDanmaku]保存弹幕关键词过滤设置失败：{}", configFile, exception);
+            return false;
+        }
     }
 
     /**
@@ -361,25 +404,59 @@ public class ConfigManager {
     }
 
     private static void upsertMethodVisibilityLine(List<String> lines, String key, boolean enabled) {
+        upsertSettingLine(lines, "MethodVisibility", key, Boolean.toString(enabled));
+    }
+
+    private static boolean writeSetting(
+            String configDirPath, String section, String key, String value) {
+        File configFile = new File(configDirPath, "DyDanmakuSettings.toml");
+        if (!configFile.exists()) {
+            createDefaultConfig(configDirPath);
+        }
+        try {
+            List<String> lines = Files.readAllLines(configFile.toPath(), StandardCharsets.UTF_8);
+            upsertSettingLine(lines, section, key, value);
+            Files.write(configFile.toPath(), lines, StandardCharsets.UTF_8);
+            return true;
+        } catch (IOException exception) {
+            LOGGER.error("[DyDanmaku]保存配置项 {} 失败：{}", key, configFile, exception);
+            return false;
+        }
+    }
+
+    private static void upsertSettingLine(
+            List<String> lines, String section, String key, String value) {
         int sectionStart = -1;
         int sectionEnd = lines.size();
-        for (int index = 0; index < lines.size(); index++) {
-            String trimmed = lines.get(index).trim();
-            if ("[MethodVisibility]".equals(trimmed)) {
-                sectionStart = index;
-                continue;
+        if (section == null) {
+            sectionStart = -1;
+            for (int index = 0; index < lines.size(); index++) {
+                String trimmed = lines.get(index).trim();
+                if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                    sectionEnd = index;
+                    break;
+                }
             }
-            if (sectionStart >= 0 && trimmed.startsWith("[") && trimmed.endsWith("]")) {
-                sectionEnd = index;
-                break;
+        } else {
+            String sectionHeader = "[" + section + "]";
+            for (int index = 0; index < lines.size(); index++) {
+                String trimmed = lines.get(index).trim();
+                if (sectionHeader.equals(trimmed)) {
+                    sectionStart = index;
+                    continue;
+                }
+                if (sectionStart >= 0 && trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                    sectionEnd = index;
+                    break;
+                }
             }
         }
 
-        if (sectionStart < 0) {
+        if (section != null && sectionStart < 0) {
             if (!lines.isEmpty() && !lines.get(lines.size() - 1).isBlank()) {
                 lines.add("");
             }
-            lines.add("[MethodVisibility]");
+            lines.add("[" + section + "]");
             sectionStart = lines.size() - 1;
             sectionEnd = lines.size();
         }
@@ -387,7 +464,7 @@ public class ConfigManager {
         for (int index = sectionStart + 1; index < sectionEnd; index++) {
             String original = lines.get(index);
             String setting = original;
-            int commentIndex = setting.indexOf('#');
+            int commentIndex = findTomlCommentIndex(setting);
             if (commentIndex >= 0) {
                 setting = setting.substring(0, commentIndex);
             }
@@ -403,11 +480,65 @@ public class ConfigManager {
             }
             String indentation = original.substring(0, firstContentIndex);
             String comment = commentIndex >= 0 ? " " + original.substring(commentIndex).trim() : "";
-            lines.set(index, indentation + key + " = " + enabled + comment);
+            lines.set(index, indentation + key + " = " + value + comment);
             return;
         }
 
-        lines.add(sectionEnd, key + " = " + enabled);
+        lines.add(sectionEnd, key + " = " + value);
+    }
+
+    private static int findTomlCommentIndex(String line) {
+        boolean inString = false;
+        boolean escaped = false;
+        for (int index = 0; index < line.length(); index++) {
+            char character = line.charAt(index);
+            if (inString && character == '\\' && !escaped) {
+                escaped = true;
+                continue;
+            }
+            if (character == '"' && !escaped) {
+                inString = !inString;
+            } else if (character == '#' && !inString) {
+                return index;
+            }
+            escaped = false;
+        }
+        return -1;
+    }
+
+    private static boolean isValidFilterMode(String mode) {
+        return mode != null && ("disabled".equalsIgnoreCase(mode)
+                || "blacklist".equalsIgnoreCase(mode)
+                || "whitelist".equalsIgnoreCase(mode));
+    }
+
+    private static String toTomlStringList(List<String> values) {
+        StringBuilder result = new StringBuilder("[");
+        for (int index = 0; index < values.size(); index++) {
+            if (index > 0) {
+                result.append(", ");
+            }
+            result.append(quoteTomlString(values.get(index)));
+        }
+        return result.append(']').toString();
+    }
+
+    private static String quoteTomlString(String value) {
+        StringBuilder result = new StringBuilder("\"");
+        for (int index = 0; index < value.length(); index++) {
+            char character = value.charAt(index);
+            switch (character) {
+                case '\\': result.append("\\\\"); break;
+                case '"': result.append("\\\""); break;
+                case '\b': result.append("\\b"); break;
+                case '\t': result.append("\\t"); break;
+                case '\n': result.append("\\n"); break;
+                case '\f': result.append("\\f"); break;
+                case '\r': result.append("\\r"); break;
+                default: result.append(character);
+            }
+        }
+        return result.append('"').toString();
     }
 
     /**
