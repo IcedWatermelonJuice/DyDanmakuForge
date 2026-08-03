@@ -62,6 +62,9 @@ public final class DyDanmakuScreen extends Screen {
         liveIdInput = new EditBox(font, 40, 70, 120, 20, Component.literal("输入直播间 URL 或房间号"));
         liveIdInput.setMaxLength(256);
         liveIdInput.setValue(initialLiveId);
+        boolean officialApi = ConfigManager.getOfficialApiConfig(
+                ClientRuntime.getConfigDir().toString()).enabled;
+        liveIdInput.setEditable(!officialApi);
         addRenderableWidget(liveIdInput);
 
         connectButton = Button.builder(Component.literal("连接"), button -> {
@@ -98,24 +101,35 @@ public final class DyDanmakuScreen extends Screen {
         super.render(graphics, mouseX, mouseY, delta);
         WebSocketClientNetty websocket = controller.getWebsocket();
         boolean connected = websocket.isConnected();
+        boolean officialApi = ConfigManager.getOfficialApiConfig(
+                ClientRuntime.getConfigDir().toString()).enabled;
 
         graphics.drawString(font, "DyDanmaku Forge", 40, 25, 0xFFFFFFFF, true);
         graphics.drawString(
                 font,
-                controller.isConnecting() ? "直播间状态：连接中" : connected ? "直播间状态：已连接" : "直播间状态：未连接",
+                controller.isConnecting() ? "弹幕数据源：连接中" : connected ? "弹幕数据源：已连接" : "弹幕数据源：未连接",
                 40,
                 45,
                 connected ? 0xFF55FF55 : 0xFFFFFFFF,
                 true
         );
 
-        liveIdInput.setEditable(!connected && !controller.isConnecting());
+        liveIdInput.setEditable(!officialApi && !connected && !controller.isConnecting());
         connectButton.setMessage(Component.literal(
                 controller.isConnecting() ? "连接中" : connected ? "断开" : "连接"));
         graphics.drawString(font, "显示类型（勾选=显示）：", 40, 100, 0xFFFFFFFF, false);
 
+        if (officialApi) {
+            graphics.drawString(font, "当前模式：抖音官方 OpenAPI bridge WSS", 40, 165, 0xFF55FFFF, false);
+            graphics.drawString(font, "请在“更多设置”中配置主播自建的接入点和 key", 40, 180, 0xFFAAAAAA, false);
+            graphics.drawString(font, "使用者须自行申请弹幕玩法及互动数据权限", 40, 195, 0xFFFFAA55, false);
+            graphics.drawString(font, "按 F7 可关闭此界面", 40, 210, 0xFFAAAAAA, false);
+            if (connected) drawDanmaku(graphics, websocket.getDanmakuText());
+            return;
+        }
+
         if (!connected || websocket.params == null) {
-            graphics.drawString(font, "输入可以是 URL 或者房间号", 40, 165, 0xFFAAAAAA, false);
+            graphics.drawString(font, "当前模式：原有网页直连", 40, 165, 0xFFAAAAAA, false);
             graphics.drawString(font, "示例 URL：https://live.douyin.com/594357732923", 40, 180, 0xFFAAAAAA, false);
             graphics.drawString(font, "示例房间号：594357732923", 40, 195, 0xFFAAAAAA, false);
             graphics.drawString(font, "按 F7 可关闭此界面", 40, 210, 0xFFAAAAAA, false);
