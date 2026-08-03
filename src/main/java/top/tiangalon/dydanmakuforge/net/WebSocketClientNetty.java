@@ -3,6 +3,7 @@ package top.tiangalon.dydanmakuforge.net;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -30,7 +31,6 @@ import java.util.Objects;
 import static top.tiangalon.dydanmakuforge.DyDanmakuForge.LOGGER;
 
 public final class WebSocketClientNetty {
-    private static final int PORT = 443;
     private static final String USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
@@ -39,10 +39,16 @@ public final class WebSocketClientNetty {
     private volatile EventLoopGroup eventLoopGroup;
     private String uri;
     private String ttwid;
+    private boolean officialApi;
+    private String officialApiKey;
     public volatile Map<String, String> params;
     public volatile WebSocketClientHandler handler;
+    public volatile OfficialApiWebSocketClientHandler officialHandler;
 
     public void init(Map<String, String> params) {
+        this.officialApi = false;
+        this.officialApiKey = null;
+        this.officialHandler = null;
         this.params = Objects.requireNonNull(params, "params");
         String roomId = requireParam(params, "roomId");
         String userUniqueId = requireParam(params, "user_unique_id");
@@ -80,25 +86,61 @@ public final class WebSocketClientNetty {
                 + "&heartbeatDuration=0&signature=" + signature;
     }
 
+    public void initOfficial(ConfigManager.OfficialApiConfig config) {
+        Objects.requireNonNull(config, "config");
+        String endpoint = config.endpoint == null ? "" : config.endpoint.trim();
+        if (endpoint.isEmpty()) {
+            throw new IllegalArgumentException("请先在更多设置中填写官方 OpenAPI bridge 接入点");
+        }
+        URI socketUri = URI.create(endpoint);
+        if (!"wss".equalsIgnoreCase(socketUri.getScheme()) || socketUri.getHost() == null) {
+            throw new IllegalArgumentException("官方 OpenAPI bridge 接入点必须是有效的 wss:// 地址");
+        }
+        if (config.key == null || config.key.isBlank()) {
+            throw new IllegalArgumentException("请先在更多设置中填写官方 OpenAPI bridge key");
+        }
+        this.officialApi = true;
+        this.officialApiKey = config.key.trim();
+        this.params = null;
+        this.handler = null;
+        this.ttwid = null;
+        this.uri = socketUri.toString();
+    }
+
     public void run() throws Exception {
         URI socketUri = URI.create(Objects.requireNonNull(uri, "WebSocket 尚未初始化"));
+        int port = socketUri.getPort() >= 0 ? socketUri.getPort() : 443;
         SslContext sslContext = SslContextBuilder.forClient().build();
         EventLoopGroup group = new NioEventLoopGroup(1);
         this.eventLoopGroup = group;
 
         HttpHeaders headers = new DefaultHttpHeaders();
         headers.add("User-Agent", USER_AGENT);
-        String sessionId = ConfigManager.getSessionId(ClientRuntime.getConfigDir().toString());
-        String cookie = "ttwid=" + ttwid;
-        if (sessionId != null && !sessionId.isBlank()) {
-            cookie += "; sessionid=" + sessionId;
+        if (officialApi) {
+            headers.add("Authorization", "Bearer " + officialApiKey);
+        } else {
+            String sessionId = ConfigManager.getSessionId(ClientRuntime.getConfigDir().toString());
+            String cookie = "ttwid=" + ttwid;
+            if (sessionId != null && !sessionId.isBlank()) {
+                cookie += "; sessionid=" + sessionId;
+            }
+            headers.add("Cookie", cookie);
         }
-        headers.add("Cookie", cookie);
 
-        WebSocketClientHandler socketHandler = new WebSocketClientHandler(
-                WebSocketClientHandshakerFactory.newHandshaker(
-                        socketUri, WebSocketVersion.V13, null, false, headers));
-        this.handler = socketHandler;
+        ChannelHandler socketHandler;
+        if (officialApi) {
+            OfficialApiWebSocketClientHandler officialSocketHandler = new OfficialApiWebSocketClientHandler(
+                    WebSocketClientHandshakerFactory.newHandshaker(
+                            socketUri, WebSocketVersion.V13, null, false, headers));
+            this.officialHandler = officialSocketHandler;
+            socketHandler = officialSocketHandler;
+        } else {
+            WebSocketClientHandler directSocketHandler = new WebSocketClientHandler(
+                    WebSocketClientHandshakerFactory.newHandshaker(
+                            socketUri, WebSocketVersion.V13, null, false, headers));
+            this.handler = directSocketHandler;
+            socketHandler = directSocketHandler;
+        }
 
         Bootstrap bootstrap = new Bootstrap();
         bootstrap.group(group)
@@ -108,7 +150,7 @@ public final class WebSocketClientNetty {
                     protected void initChannel(SocketChannel socketChannel) {
                         ChannelPipeline pipeline = socketChannel.pipeline();
                         pipeline.addLast(
-                                sslContext.newHandler(socketChannel.alloc(), socketUri.getHost(), PORT),
+                                sslContext.newHandler(socketChannel.alloc(), socketUri.getHost(), port),
                                 new HttpClientCodec(),
                                 new HttpObjectAggregator(8192),
                                 socketHandler
@@ -117,8 +159,12 @@ public final class WebSocketClientNetty {
                 });
 
         try {
-            channel = bootstrap.connect(socketUri.getHost(), PORT).sync().channel();
-            socketHandler.handshakeFuture().sync();
+            channel = bootstrap.connect(socketUri.getHost(), port).sync().channel();
+            if (officialApi) {
+                officialHandler.handshakeFuture().sync();
+            } else {
+                handler.handshakeFuture().sync();
+            }
         } catch (Exception exception) {
             shutdownGroup();
             throw exception;
@@ -127,9 +173,14 @@ public final class WebSocketClientNetty {
 
     public boolean isConnected() {
         Channel current = channel;
+        if (current == null || !current.isActive()) return false;
+        if (officialApi) {
+            OfficialApiWebSocketClientHandler currentHandler = officialHandler;
+            return currentHandler != null && currentHandler.handshakeFuture() != null
+                    && currentHandler.handshakeFuture().isSuccess();
+        }
         WebSocketClientHandler currentHandler = handler;
-        return current != null && current.isActive()
-                && currentHandler != null && currentHandler.handshakeFuture() != null
+        return currentHandler != null && currentHandler.handshakeFuture() != null
                 && currentHandler.handshakeFuture().isSuccess();
     }
 
@@ -155,6 +206,12 @@ public final class WebSocketClientNetty {
     }
 
     public void liveStatusOutput() {
+        if (officialApi) {
+            ClientRuntime.output("—————————————§bDYDANMAKU§f—————————————");
+            ClientRuntime.output("已连接主播自建的抖音官方 OpenAPI bridge WSS");
+            ClientRuntime.output("—————————————————————————————————");
+            return;
+        }
         if (params == null) {
             ClientRuntime.output("[DyDanmaku]未获取到直播间参数");
             return;
@@ -169,8 +226,16 @@ public final class WebSocketClientNetty {
     }
 
     public String getDanmakuText() {
+        OfficialApiWebSocketClientHandler currentOfficialHandler = officialHandler;
+        if (officialApi) {
+            return currentOfficialHandler == null ? "" : currentOfficialHandler.getDanmakuText();
+        }
         WebSocketClientHandler currentHandler = handler;
         return currentHandler == null ? "" : currentHandler.getDanmakuText();
+    }
+
+    public boolean isOfficialApi() {
+        return officialApi;
     }
 
     private static String requireParam(Map<String, String> params, String key) {

@@ -15,6 +15,13 @@ import static top.tiangalon.dydanmakuforge.DyDanmakuForge.LOGGER;
 
 public class ConfigManager {
 
+    /** 基于抖音官方 OpenAPI、由主播自建 bridge 转发的 WSS 接入配置。 */
+    public static class OfficialApiConfig {
+        public boolean enabled = true;
+        public String endpoint = "";
+        public String key = "";
+    }
+
     public enum MessageType {
         CHAT("chat", "chat", "消息", "WebcastChatMessage"),
         MEMBER("member", "member", "入场", "WebcastMemberMessage"),
@@ -185,7 +192,14 @@ public class ConfigManager {
         if (!configFile.exists()) {
             try {
                 configFile.getParentFile().mkdirs();
-                String defaultContent = "# 在下方输入抖音直播官网的sessionId\n"
+                String defaultContent = "# 抖音官方 OpenAPI bridge 接入（默认启用）\n"
+                        + "# 使用者须自行在抖音开放平台申请弹幕玩法及对应互动数据权限，\n"
+                        + "# 并自行搭建 WSS bridge，将开放平台推送的互动数据转发给本 Mod。\n"
+                        + "Dy_Official_API = true\n"
+                        + "Dy_Official_API_Endpoint = \"\"\n"
+                        + "Dy_Official_API_Key = \"\"\n"
+                        + "\n"
+                        + "# 仅当 Dy_Official_API = false 时，原有网页直连接入使用此 sessionId\n"
                         + "DySessionId = \"\"\n"
                         + "\n"
                         + "# 弹幕过滤器设置\n"
@@ -274,6 +288,49 @@ public class ConfigManager {
     public static synchronized boolean setSessionId(String configDirPath, String sessionId) {
         String value = sessionId == null ? "" : sessionId.trim();
         return writeSetting(configDirPath, null, "DySessionId", quoteTomlString(value));
+    }
+
+    /** 读取官方 OpenAPI bridge 配置；旧配置未包含开关时默认启用。 */
+    public static OfficialApiConfig getOfficialApiConfig(String configDirPath) {
+        OfficialApiConfig config = new OfficialApiConfig();
+        File configFile = new File(configDirPath, "DyDanmakuSettings.toml");
+        if (!configFile.exists()) {
+            return config;
+        }
+        try {
+            Toml toml = new Toml().read(configFile);
+            Boolean enabled = toml.getBoolean("Dy_Official_API");
+            if (enabled != null) config.enabled = enabled;
+            String endpoint = toml.getString("Dy_Official_API_Endpoint");
+            if (endpoint != null) config.endpoint = endpoint.trim();
+            String key = toml.getString("Dy_Official_API_Key");
+            if (key != null) config.key = key.trim();
+        } catch (Exception e) {
+            LOGGER.warn("[DyDanmaku]读取官方 OpenAPI bridge 配置失败，将使用默认值", e);
+        }
+        return config;
+    }
+
+    /** 保存官方 OpenAPI bridge 配置。 */
+    public static synchronized boolean setOfficialApiConfig(
+            String configDirPath, boolean enabled, String endpoint, String key) {
+        File configFile = new File(configDirPath, "DyDanmakuSettings.toml");
+        if (!configFile.exists()) {
+            createDefaultConfig(configDirPath);
+        }
+        try {
+            List<String> lines = Files.readAllLines(configFile.toPath(), StandardCharsets.UTF_8);
+            upsertSettingLine(lines, null, "Dy_Official_API", Boolean.toString(enabled));
+            upsertSettingLine(lines, null, "Dy_Official_API_Endpoint",
+                    quoteTomlString(endpoint == null ? "" : endpoint.trim()));
+            upsertSettingLine(lines, null, "Dy_Official_API_Key",
+                    quoteTomlString(key == null ? "" : key.trim()));
+            Files.write(configFile.toPath(), lines, StandardCharsets.UTF_8);
+            return true;
+        } catch (IOException exception) {
+            LOGGER.error("[DyDanmaku]保存官方 OpenAPI bridge 配置失败：{}", configFile, exception);
+            return false;
+        }
     }
 
     /**

@@ -2,6 +2,7 @@ package top.tiangalon.dydanmakuforge.client;
 
 import top.tiangalon.dydanmakuforge.net.DyDanmakuRequest;
 import top.tiangalon.dydanmakuforge.net.WebSocketClientNetty;
+import top.tiangalon.dydanmakuforge.config.ConfigManager;
 
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -22,8 +23,10 @@ public final class DyDanmakuController {
     });
 
     public void connect(String liveId) {
+        ConfigManager.OfficialApiConfig officialConfig = ConfigManager.getOfficialApiConfig(
+                ClientRuntime.getConfigDir().toString());
         String normalizedId = normalizeLiveId(liveId);
-        if (normalizedId.isEmpty()) {
+        if (!officialConfig.enabled && normalizedId.isEmpty()) {
             ClientRuntime.output("[DyDanmaku]请输入直播间 URL 或房间号");
             return;
         }
@@ -36,21 +39,29 @@ public final class DyDanmakuController {
             return;
         }
 
-        ClientRuntime.output("[DyDanmaku]正在连接直播间：" + normalizedId);
+        ClientRuntime.output(officialConfig.enabled
+                ? "[DyDanmaku]正在连接抖音官方 OpenAPI bridge WSS"
+                : "[DyDanmaku]正在通过原有直连方式连接直播间：" + normalizedId);
         worker.submit(() -> {
             try {
-                Map<String, String> params = DyDanmakuRequest.getParams(normalizedId);
-                if (params == null) {
-                    ClientRuntime.output("[DyDanmaku]无法获取直播间参数，请检查网络环境或房间号");
-                    return;
+                if (officialConfig.enabled) {
+                    websocket.initOfficial(officialConfig);
+                } else {
+                    Map<String, String> params = DyDanmakuRequest.getParams(normalizedId);
+                    if (params == null) {
+                        ClientRuntime.output("[DyDanmaku]无法获取直播间参数，请检查网络环境或房间号");
+                        return;
+                    }
+                    websocket.init(params);
                 }
-                websocket.init(params);
                 websocket.run();
-                ClientRuntime.output("[DyDanmaku]已经连接到直播间：" + normalizedId);
+                ClientRuntime.output(officialConfig.enabled
+                        ? "[DyDanmaku]已连接抖音官方 OpenAPI bridge WSS"
+                        : "[DyDanmaku]已经连接到直播间：" + normalizedId);
                 websocket.liveStatusOutput();
             } catch (Exception exception) {
-                LOGGER.error("[DyDanmaku]连接直播间 {} 失败", normalizedId, exception);
-                ClientRuntime.output("[DyDanmaku]连接直播间失败：" + exception.getMessage());
+                LOGGER.error("[DyDanmaku]连接弹幕数据源失败", exception);
+                ClientRuntime.output("[DyDanmaku]连接弹幕数据源失败：" + exception.getMessage());
                 closeQuietly();
             } finally {
                 connecting.set(false);
