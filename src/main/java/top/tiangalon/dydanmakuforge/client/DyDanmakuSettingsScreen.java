@@ -20,8 +20,16 @@ public final class DyDanmakuSettingsScreen extends Screen {
     private final String configDir;
     private final List<String> keywords = new ArrayList<>();
     private final List<Button> keywordButtons = new ArrayList<>();
+    private boolean connectionPage = true;
+    private boolean officialApiEnabled;
+    private String officialEndpoint;
+    private String officialKey;
+    private String directSessionId;
+    private EditBox endpointInput;
+    private EditBox keyInput;
     private EditBox sessionIdInput;
     private EditBox keywordInput;
+    private Button officialApiButton;
     private Button modeButton;
     private Button editButton;
     private Button deleteButton;
@@ -35,6 +43,12 @@ public final class DyDanmakuSettingsScreen extends Screen {
         super(Component.literal("DyDanmaku 设置"));
         this.parent = parent;
         this.configDir = ClientRuntime.getConfigDir().toString();
+        ConfigManager.OfficialApiConfig official = ConfigManager.getOfficialApiConfig(configDir);
+        this.officialApiEnabled = official.enabled;
+        this.officialEndpoint = official.endpoint;
+        this.officialKey = official.key;
+        String sessionId = ConfigManager.getSessionId(configDir);
+        this.directSessionId = sessionId == null ? "" : sessionId;
         ConfigManager.FilterConfig filter = ConfigManager.getFilterConfig(configDir);
         this.filterMode = filter.mode;
         this.keywords.addAll(filter.keywords);
@@ -42,57 +56,115 @@ public final class DyDanmakuSettingsScreen extends Screen {
 
     @Override
     protected void init() {
-        String pendingSessionId = sessionIdInput == null ? null : sessionIdInput.getValue();
-        String pendingKeyword = keywordInput == null ? "" : keywordInput.getValue();
+        rememberInputs();
         keywordButtons.clear();
         int left = Math.max(20, width / 2 - 190);
         int contentWidth = Math.min(380, width - 40);
-        visibleKeywordRows = Math.max(1, Math.min(MAX_VISIBLE_KEYWORDS, (height - 205) / 22));
 
-        String sessionId = ConfigManager.getSessionId(configDir);
-        sessionIdInput = new EditBox(font, left, 48, contentWidth - 75, 20, Component.literal("DySessionId"));
+        addRenderableWidget(Button.builder(Component.literal("接入设置"), button -> switchPage(true))
+                .bounds(left, 28, contentWidth / 2 - 2, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("弹幕过滤"), button -> switchPage(false))
+                .bounds(left + contentWidth / 2 + 2, 28, contentWidth / 2 - 2, 20).build());
+
+        if (connectionPage) {
+            initConnectionPage(left, contentWidth);
+        } else {
+            initFilterPage(left, contentWidth);
+        }
+        addRenderableWidget(Button.builder(Component.literal("完成"), button -> onClose())
+                .bounds(left + contentWidth - 80, height - 30, 80, 20).build());
+    }
+
+    private void initConnectionPage(int left, int contentWidth) {
+        officialApiButton = Button.builder(officialApiText(), button -> {
+            officialApiEnabled = !officialApiEnabled;
+            officialApiButton.setMessage(officialApiText());
+            updateConnectionFields();
+        }).bounds(left, 56, contentWidth, 20).build();
+        addRenderableWidget(officialApiButton);
+
+        endpointInput = new EditBox(font, left, 88, contentWidth, 20,
+                Component.literal("WSS bridge 接入点"));
+        endpointInput.setMaxLength(2048);
+        endpointInput.setValue(officialEndpoint);
+        addRenderableWidget(endpointInput);
+
+        keyInput = new EditBox(font, left, 120, contentWidth, 20, Component.literal("Bridge key"));
+        keyInput.setMaxLength(4096);
+        keyInput.setValue(officialKey);
+        addRenderableWidget(keyInput);
+
+        sessionIdInput = new EditBox(font, left, 152, contentWidth, 20, Component.literal("DySessionId"));
         sessionIdInput.setMaxLength(4096);
-        sessionIdInput.setValue(pendingSessionId != null ? pendingSessionId : sessionId == null ? "" : sessionId);
+        sessionIdInput.setValue(directSessionId);
         addRenderableWidget(sessionIdInput);
-        addRenderableWidget(Button.builder(Component.literal("保存"), button -> saveSessionId())
-                .bounds(left + contentWidth - 70, 48, 70, 20).build());
 
+        addRenderableWidget(Button.builder(Component.literal("保存接入设置"), button -> saveConnectionSettings())
+                .bounds(left, 180, contentWidth, 20).build());
+        updateConnectionFields();
+    }
+
+    private void initFilterPage(int left, int contentWidth) {
         modeButton = Button.builder(filterModeText(), button -> cycleFilterMode())
-                .bounds(left, 92, contentWidth, 20).build();
+                .bounds(left, 58, contentWidth, 20).build();
         addRenderableWidget(modeButton);
 
-        keywordInput = new EditBox(font, left, 136, contentWidth - 225, 20, Component.literal("过滤关键词"));
+        keywordInput = new EditBox(font, left, 102, contentWidth - 225, 20, Component.literal("过滤关键词"));
         keywordInput.setMaxLength(256);
-        keywordInput.setValue(pendingKeyword);
         addRenderableWidget(keywordInput);
         addRenderableWidget(Button.builder(Component.literal("新增"), button -> addKeyword())
-                .bounds(left + contentWidth - 220, 136, 70, 20).build());
+                .bounds(left + contentWidth - 220, 102, 70, 20).build());
         editButton = Button.builder(Component.literal("修改"), button -> editKeyword())
-                .bounds(left + contentWidth - 145, 136, 70, 20).build();
+                .bounds(left + contentWidth - 145, 102, 70, 20).build();
         addRenderableWidget(editButton);
         deleteButton = Button.builder(Component.literal("删除"), button -> deleteKeyword())
-                .bounds(left + contentWidth - 70, 136, 70, 20).build();
+                .bounds(left + contentWidth - 70, 102, 70, 20).build();
         addRenderableWidget(deleteButton);
 
+        visibleKeywordRows = Math.max(1, Math.min(MAX_VISIBLE_KEYWORDS, (height - 175) / 22));
         for (int row = 0; row < visibleKeywordRows; row++) {
             final int rowIndex = row;
-            Button keywordButton = Button.builder(Component.empty(), button -> selectKeyword(keywordScroll + rowIndex))
-                    .bounds(left, 164 + row * 22, contentWidth, 20).build();
+            Button keywordButton = Button.builder(Component.empty(),
+                            button -> selectKeyword(keywordScroll + rowIndex))
+                    .bounds(left, 130 + row * 22, contentWidth, 20).build();
             keywordButtons.add(keywordButton);
             addRenderableWidget(keywordButton);
         }
-
-        addRenderableWidget(Button.builder(Component.literal("完成"), button -> onClose())
-                .bounds(left + contentWidth - 80, height - 30, 80, 20).build());
         refreshKeywordButtons();
     }
 
-    private void saveSessionId() {
-        if (ConfigManager.setSessionId(configDir, sessionIdInput.getValue())) {
-            statusMessage = "DySessionId 已保存，下次连接时生效";
-        } else {
-            statusMessage = "DySessionId 保存失败，请查看日志";
-        }
+    private void switchPage(boolean connectionPage) {
+        if (this.connectionPage == connectionPage) return;
+        rememberInputs();
+        this.connectionPage = connectionPage;
+        clearWidgets();
+        init();
+    }
+
+    private void rememberInputs() {
+        if (endpointInput != null) officialEndpoint = endpointInput.getValue();
+        if (keyInput != null) officialKey = keyInput.getValue();
+        if (sessionIdInput != null) directSessionId = sessionIdInput.getValue();
+    }
+
+    private void updateConnectionFields() {
+        if (endpointInput != null) endpointInput.setEditable(officialApiEnabled);
+        if (keyInput != null) keyInput.setEditable(officialApiEnabled);
+        if (sessionIdInput != null) sessionIdInput.setEditable(!officialApiEnabled);
+    }
+
+    private void saveConnectionSettings() {
+        rememberInputs();
+        boolean officialSaved = ConfigManager.setOfficialApiConfig(
+                configDir, officialApiEnabled, officialEndpoint, officialKey);
+        boolean sessionSaved = ConfigManager.setSessionId(configDir, directSessionId);
+        statusMessage = officialSaved && sessionSaved
+                ? "接入设置已保存，下次连接时生效"
+                : "接入设置保存失败，请查看日志";
+    }
+
+    private Component officialApiText() {
+        return Component.literal("抖音官方 OpenAPI bridge：" + (officialApiEnabled ? "开启（默认）" : "关闭（原有直连）"));
     }
 
     private void cycleFilterMode() {
@@ -104,14 +176,8 @@ public final class DyDanmakuSettingsScreen extends Screen {
 
     private void addKeyword() {
         String keyword = keywordInput.getValue().trim();
-        if (keyword.isEmpty()) {
-            statusMessage = "请输入要新增的关键词";
-            return;
-        }
-        if (keywords.contains(keyword)) {
-            statusMessage = "该关键词已存在";
-            return;
-        }
+        if (keyword.isEmpty()) { statusMessage = "请输入要新增的关键词"; return; }
+        if (keywords.contains(keyword)) { statusMessage = "该关键词已存在"; return; }
         keywords.add(keyword);
         selectedKeyword = keywords.size() - 1;
         ensureSelectedKeywordVisible();
@@ -122,18 +188,13 @@ public final class DyDanmakuSettingsScreen extends Screen {
 
     private void editKeyword() {
         if (selectedKeyword < 0 || selectedKeyword >= keywords.size()) {
-            statusMessage = "请先在下方选择一个关键词";
-            return;
+            statusMessage = "请先在下方选择一个关键词"; return;
         }
         String keyword = keywordInput.getValue().trim();
-        if (keyword.isEmpty()) {
-            statusMessage = "请输入修改后的关键词";
-            return;
-        }
+        if (keyword.isEmpty()) { statusMessage = "请输入修改后的关键词"; return; }
         int duplicateIndex = keywords.indexOf(keyword);
         if (duplicateIndex >= 0 && duplicateIndex != selectedKeyword) {
-            statusMessage = "该关键词已存在";
-            return;
+            statusMessage = "该关键词已存在"; return;
         }
         keywords.set(selectedKeyword, keyword);
         keywordInput.setValue("");
@@ -143,15 +204,10 @@ public final class DyDanmakuSettingsScreen extends Screen {
 
     private void deleteKeyword() {
         if (selectedKeyword < 0 || selectedKeyword >= keywords.size()) {
-            statusMessage = "请先在下方选择一个关键词";
-            return;
+            statusMessage = "请先在下方选择一个关键词"; return;
         }
         keywords.remove(selectedKeyword);
-        if (keywords.isEmpty()) {
-            selectedKeyword = -1;
-        } else {
-            selectedKeyword = Math.min(selectedKeyword, keywords.size() - 1);
-        }
+        selectedKeyword = keywords.isEmpty() ? -1 : Math.min(selectedKeyword, keywords.size() - 1);
         keywordScroll = Math.min(keywordScroll, Math.max(0, keywords.size() - visibleKeywordRows));
         keywordInput.setValue("");
         saveFilter("关键词已删除");
@@ -159,9 +215,7 @@ public final class DyDanmakuSettingsScreen extends Screen {
     }
 
     private void selectKeyword(int index) {
-        if (index < 0 || index >= keywords.size()) {
-            return;
-        }
+        if (index < 0 || index >= keywords.size()) return;
         selectedKeyword = index;
         keywordInput.setValue(keywords.get(index));
         refreshKeywordButtons();
@@ -169,16 +223,13 @@ public final class DyDanmakuSettingsScreen extends Screen {
 
     private void saveFilter(String successMessage) {
         statusMessage = ConfigManager.setFilterConfig(configDir, filterMode, keywords)
-                ? successMessage
-                : "过滤器设置保存失败，请查看日志";
+                ? successMessage : "过滤器设置保存失败，请查看日志";
     }
 
     private void ensureSelectedKeywordVisible() {
-        if (selectedKeyword < keywordScroll) {
-            keywordScroll = selectedKeyword;
-        } else if (selectedKeyword >= keywordScroll + visibleKeywordRows) {
+        if (selectedKeyword < keywordScroll) keywordScroll = selectedKeyword;
+        else if (selectedKeyword >= keywordScroll + visibleKeywordRows)
             keywordScroll = selectedKeyword - visibleKeywordRows + 1;
-        }
     }
 
     private void refreshKeywordButtons() {
@@ -209,14 +260,14 @@ public final class DyDanmakuSettingsScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
         super.render(graphics, mouseX, mouseY, delta);
         int left = Math.max(20, width / 2 - 190);
-        graphics.drawCenteredString(font, title, width / 2, 18, 0xFFFFFFFF);
-        graphics.drawString(font, "DySessionId", left, 36, 0xFFAAAAAA, false);
-        graphics.drawString(font, "过滤模式（点击切换）", left, 80, 0xFFAAAAAA, false);
-        graphics.drawString(font, "关键词（选择列表项后可修改或删除）", left, 124, 0xFFAAAAAA, false);
-        if (keywords.size() > visibleKeywordRows) {
-            graphics.drawString(font, "滚轮查看更多（" + (keywordScroll + 1) + "-"
-                    + Math.min(keywordScroll + visibleKeywordRows, keywords.size()) + "/" + keywords.size() + "）",
-                    left, 166 + visibleKeywordRows * 22, 0xFFAAAAAA, false);
+        graphics.drawCenteredString(font, title, width / 2, 12, 0xFFFFFFFF);
+        if (connectionPage) {
+            graphics.drawString(font, "WSS bridge 接入点", left, 78, 0xFFAAAAAA, false);
+            graphics.drawString(font, "Bridge key（作为 Bearer Token 发送）", left, 110, 0xFFAAAAAA, false);
+            graphics.drawString(font, "DySessionId（仅原有直连模式使用）", left, 142, 0xFFAAAAAA, false);
+        } else {
+            graphics.drawString(font, "过滤模式（点击切换）", left, 48, 0xFFAAAAAA, false);
+            graphics.drawString(font, "关键词（选择列表项后可修改或删除）", left, 92, 0xFFAAAAAA, false);
         }
         if (!statusMessage.isEmpty()) {
             graphics.drawString(font, statusMessage, left, height - 27, 0xFF55FF55, false);
@@ -225,7 +276,7 @@ public final class DyDanmakuSettingsScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (mouseY >= 160 && mouseY <= 164 + visibleKeywordRows * 22
+        if (!connectionPage && mouseY >= 126 && mouseY <= 130 + visibleKeywordRows * 22
                 && keywords.size() > visibleKeywordRows) {
             int maxScroll = keywords.size() - visibleKeywordRows;
             keywordScroll = Math.max(0, Math.min(maxScroll,
@@ -238,12 +289,8 @@ public final class DyDanmakuSettingsScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (keyCode == GLFW.GLFW_KEY_ENTER && keywordInput.isFocused()) {
-            if (selectedKeyword >= 0) {
-                editKeyword();
-            } else {
-                addKeyword();
-            }
+        if (!connectionPage && keyCode == GLFW.GLFW_KEY_ENTER && keywordInput.isFocused()) {
+            if (selectedKeyword >= 0) editKeyword(); else addKeyword();
             return true;
         }
         return super.keyPressed(keyCode, scanCode, modifiers);
@@ -251,9 +298,7 @@ public final class DyDanmakuSettingsScreen extends Screen {
 
     @Override
     public void onClose() {
-        if (minecraft != null) {
-            minecraft.setScreen(parent);
-        }
+        if (minecraft != null) minecraft.setScreen(parent);
     }
 
     @Override
