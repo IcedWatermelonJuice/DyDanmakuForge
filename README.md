@@ -25,8 +25,6 @@
 
 ## 下载与 Java 版本
 
-已构建的 Mod 将发布在 [GitHub Releases](https://github.com/IcedWatermelonJuice/DyDanmakuForge/releases)。请根据 Minecraft 版本下载对应的 JAR 文件。
-
 Minecraft 1.20.1 版本的 Mod 基于 Java 17 构建，Minecraft 1.21.1 的 Forge 与 NeoForge 版本均基于 Java 21 构建。运行 Mod 时也建议为对应的 Minecraft/Forge/NeoForge 实例使用相同的 Java 版本，以避免类版本不兼容或其他运行问题。
 
 ## 使用方法
